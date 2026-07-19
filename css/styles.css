@@ -1,25 +1,20 @@
 @import url('https://fonts.googleapis.com/css2?family=Frank+Ruhl+Libre:wght@500;700;900&family=Heebo:wght@500;600;700;800&display=swap');
 
 :root {
-  --ink: #1c1c1e;
-  --muted: #5c5c62;
-  --line: #d0d0d4;
-  --line-strong: #9a9aa3;
-  --soft: #f3f3f5;
-  --soft-2: #ececf0;
-  --paper: #ffffff;
-  --shabbat: #8b3a4a;
-  --shabbat-soft: #faf2f4;
-  --band: #5a5a64;
-  --band-main: #6e6e78;
-  --band-sub: #8a8a96;
-  --chip-bg: #f7f7f9;
-  --toolbar: #2a2a2e;
+  --ink: #111;
+  --muted: #555;
+  --line: #ccc;
+  --soft: #f0f0f0;
+  --paper: #fff;
+  --shabbat: #7a3340;
+  --shabbat-soft: #f8f0f2;
+  --band-main: #6b6b75;
+  --band-sub: #8d8d98;
+  --toolbar: #222;
   --font-display: 'Frank Ruhl Libre', 'Times New Roman', serif;
   --font-body: 'Heebo', 'Arial Hebrew', 'Arial', sans-serif;
   --a4-w: 210mm;
   --a4-h: 297mm;
-  --radius: 8px;
 }
 
 *,
@@ -35,8 +30,7 @@ html {
 body {
   margin: 0;
   color: var(--ink);
-  background:
-    radial-gradient(ellipse at 50% 0%, #f0f0f2 0%, #d8d8dc 55%, #cfcfd4 100%);
+  background: #e2e2e2;
   font-family: var(--font-body);
   line-height: 1.25;
   min-height: 100vh;
@@ -56,25 +50,18 @@ body {
   justify-content: center;
   padding: 0.5rem;
   background: var(--toolbar);
-  backdrop-filter: blur(8px);
 }
 
 .toolbar button,
 .toolbar select {
   font-family: var(--font-body);
   font-size: 0.85rem;
-  border: 1px solid rgba(255, 255, 255, 0.28);
+  border: 1px solid rgba(255, 255, 255, 0.35);
   background: rgba(255, 255, 255, 0.1);
   color: #fff;
   border-radius: 999px;
   padding: 0.4rem 0.75rem;
   cursor: pointer;
-  transition: background 0.15s ease;
-}
-
-.toolbar button:hover,
-.toolbar select:hover {
-  background: rgba(255, 255, 255, 0.2);
 }
 
 .toolbar button[aria-pressed='true'] {
@@ -92,14 +79,14 @@ body {
   gap: 0.35rem;
   justify-content: center;
   padding: 0.4rem;
-  background: #fff9ef;
-  border-bottom: 1px solid #ead9b5;
+  background: #fff8e7;
+  border-bottom: 1px solid #e0c98a;
 }
 
 .edit-panel button,
 .edit-panel select {
   font-family: var(--font-body);
-  border: 1px solid #555;
+  border: 1px solid #333;
   background: #fff;
   border-radius: 8px;
   padding: 0.35rem 0.6rem;
@@ -126,24 +113,16 @@ body {
   width: var(--a4-w);
   max-width: 100%;
   height: var(--a4-h);
-  max-height: var(--a4-h);
   margin: 0 auto;
   background: var(--paper);
-  border: 1px solid #c8c8ce;
-  border-radius: 2px;
-  box-shadow: 0 10px 36px rgba(40, 40, 50, 0.12);
+  border: 1px solid #bbb;
+  box-shadow: 0 6px 22px rgba(0, 0, 0, 0.1);
   padding: 5mm 6mm;
-  display: grid;
-  grid-template-rows: auto auto auto 1fr auto auto auto;
+  display: flex;
+  flex-direction: column;
   gap: 2.5mm;
   overflow: hidden;
   font-size: 13.5pt;
-}
-
-/* שם בית הכנסת בלבד */
-.mast {
-  text-align: center;
-  padding-bottom: 1.5mm;
 }
 
 .mast-name {
@@ -151,15 +130,14 @@ body {
   font-weight: 700;
   font-size: 15.5pt;
   line-height: 1.15;
-  letter-spacing: 0.01em;
-  color: var(--ink);
+  text-align: center;
 }
 
-/* הדלקה / יציאה */
 .zman-strip {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 2.5mm;
+  flex: 0 0 auto;
 }
 
 .zman-chip {
@@ -167,21 +145,14 @@ body {
   align-items: center;
   justify-content: space-between;
   gap: 3mm;
-  padding: 2.2mm 3.2mm;
-  border: 1.5px solid var(--line-strong);
-  border-radius: var(--radius);
-  background: linear-gradient(180deg, #fbfbfd 0%, var(--chip-bg) 100%);
-}
-
-.zman-chip.accent {
-  border-color: #b08a92;
-  background: linear-gradient(180deg, #fffafb 0%, var(--shabbat-soft) 100%);
+  padding: 2mm 3mm;
+  border: 2px solid #333;
+  background: var(--soft);
 }
 
 .zman-label {
   font-weight: 700;
   font-size: 13pt;
-  color: var(--muted);
 }
 
 .zman-time {
@@ -191,14 +162,13 @@ body {
   line-height: 1;
   direction: ltr;
   font-variant-numeric: tabular-nums;
-  color: var(--ink);
 }
 
-/* הודעות */
 .messages-wrap {
   display: flex;
   flex-direction: column;
   gap: 2mm;
+  flex: 0 0 auto;
 }
 
 .messages-wrap:empty {
@@ -206,15 +176,13 @@ body {
 }
 
 .important-message {
-  border: 2px solid var(--shabbat);
-  border-radius: var(--radius);
+  border: 2.5px solid var(--shabbat);
   background: var(--shabbat-soft);
-  padding: 2.2mm 3mm;
+  padding: 2mm 3mm;
 }
 
 .important-message.is-empty {
   border-style: dashed;
-  opacity: 0.9;
 }
 
 .msg-head {
@@ -229,8 +197,7 @@ body {
   color: #fff;
   font-weight: 800;
   font-size: 10pt;
-  padding: 0.6mm 2.2mm;
-  border-radius: 4px;
+  padding: 0.5mm 2mm;
 }
 
 .msg-remove {
@@ -251,28 +218,21 @@ body {
   line-height: 1.3;
 }
 
-/* לוחות */
 .board {
-  min-height: 0;
-  border: 1.5px solid var(--line);
-  border-radius: var(--radius);
+  border: 2px solid #333;
   padding: 2.5mm;
-  background: #fafafa;
-}
-
-.board-shabbat {
   display: flex;
   flex-direction: column;
   gap: 2mm;
+  flex: 1 1 auto;
+  min-height: 0;
 }
 
-.board-cols {
+.cols {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 3mm;
   align-content: start;
-  flex: 1;
-  min-height: 0;
 }
 
 .col {
@@ -280,33 +240,24 @@ body {
   flex-direction: column;
   gap: 1.2mm;
   min-width: 0;
-  background: #fff;
-  border-radius: 6px;
-  padding: 1.5mm;
-  border: 1px solid var(--line);
 }
 
-/* כותרות בהירות ומודרניות */
 .band {
   font-weight: 800;
   color: #fff;
-  padding: 1.6mm 3mm;
+  padding: 1.5mm 2.5mm;
   line-height: 1.25;
-  border-radius: 6px;
-  letter-spacing: 0.01em;
 }
 
 .band-main {
   font-size: 13.5pt;
   text-align: center;
-  background: linear-gradient(135deg, #7a7a86 0%, #636370 100%);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.18);
+  background: var(--band-main);
 }
 
 .band-sub {
   font-size: 12pt;
-  background: linear-gradient(135deg, #9a9aa6 0%, #858592 100%);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.2);
+  background: var(--band-sub);
 }
 
 .schedule {
@@ -319,8 +270,8 @@ body {
   grid-template-columns: 1fr auto;
   gap: 2mm;
   align-items: baseline;
-  padding: 1.3mm 1.2mm;
-  border-bottom: 1px solid #e4e4e8;
+  padding: 1.2mm 1mm;
+  border-bottom: 1px solid #ddd;
 }
 
 .row:last-child {
@@ -342,16 +293,14 @@ body {
   text-align: left;
   font-variant-numeric: tabular-nums;
   min-width: 3.4rem;
-  color: #222;
 }
 
 .row.highlight-line {
   grid-template-columns: 1fr;
   background: var(--soft);
-  border: 1px solid var(--line);
-  border-radius: 5px;
+  border: 1px solid #bbb;
   margin-top: 1mm;
-  padding: 1.6mm 2.2mm;
+  padding: 1.5mm 2mm;
 }
 
 .row.sub-note {
@@ -367,37 +316,13 @@ body {
 }
 
 body.edit-mode .editable {
-  outline: 1px dashed #aaa;
-  border-radius: 3px;
+  outline: 1px dashed #888;
   cursor: text;
 }
 
 body.edit-mode .editable:focus {
-  outline: 2px solid #666;
+  outline: 2px solid #111;
   background: #fffbea;
-}
-
-.board-week {
-  display: flex;
-  flex-direction: column;
-  gap: 2mm;
-}
-
-.week-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 3mm;
-}
-
-.week-block {
-  min-width: 0;
-  background: #fff;
-  border-radius: 6px;
-  padding: 1.5mm;
-  border: 1px solid var(--line);
-  display: flex;
-  flex-direction: column;
-  gap: 1.2mm;
 }
 
 .lessons {
@@ -411,23 +336,18 @@ body.edit-mode .editable:focus {
   font-family: var(--font-display);
   font-size: 13pt;
   font-weight: 700;
-  color: #3a3a42;
-  border-bottom: 1px solid var(--line);
-  padding-bottom: 0.5mm;
+  border-bottom: 1px solid #bbb;
 }
 
 .special-days {
-  margin-top: 0;
-  padding: 1.8mm 2.5mm;
-  border: 1px dashed var(--line-strong);
-  border-radius: 6px;
-  background: #fff;
+  padding: 1.5mm 2.5mm;
+  border: 1.5px solid #888;
+  background: #f7f7f7;
 }
 
 .special-days h3 {
   margin: 0 0 1mm;
   font-size: 12pt;
-  color: var(--muted);
 }
 
 .special-days ul {
@@ -447,20 +367,20 @@ body.edit-mode .editable:focus {
   justify-content: center;
   gap: 2mm;
   padding-top: 1.5mm;
-  border-top: 1.5px solid var(--line);
+  border-top: 2px solid #333;
   text-align: center;
+  flex: 0 0 auto;
 }
 
 .shabbat-shalom {
   font-family: var(--font-display);
   font-size: 16pt;
   font-weight: 800;
-  color: var(--shabbat);
 }
 
 .footer-sep {
   font-weight: 700;
-  color: #aaa;
+  color: #888;
 }
 
 .slogan {
@@ -468,14 +388,14 @@ body.edit-mode .editable:focus {
   font-size: 11.5pt;
   font-weight: 700;
   line-height: 1.2;
-  color: #3a3a42;
 }
 
 .source-note {
   margin: 0;
   text-align: center;
   font-size: 8.5pt;
-  color: #999;
+  color: #888;
+  flex: 0 0 auto;
 }
 
 .side-panel {
@@ -486,11 +406,11 @@ body.edit-mode .editable:focus {
   max-height: 55vh;
   overflow: auto;
   background: #fff;
-  border: 1px solid #ccc;
-  border-radius: 14px;
+  border: 2px solid #111;
+  border-radius: 10px;
   z-index: 60;
-  padding: 0.7rem;
-  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.16);
+  padding: 0.65rem;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
 }
 
 .side-panel header {
@@ -521,9 +441,9 @@ body.edit-mode .editable:focus {
 .history-item {
   width: 100%;
   text-align: right;
-  border: 1px solid #e5e5e8;
+  border: 1px solid #ddd;
   background: #fafafa;
-  border-radius: 10px;
+  border-radius: 8px;
   padding: 0.45rem 0.55rem;
   margin-bottom: 0.3rem;
   cursor: pointer;
@@ -547,7 +467,7 @@ body.edit-mode .editable:focus {
   bottom: 1rem;
   left: 50%;
   transform: translateX(-50%);
-  background: #2a2a2e;
+  background: #111;
   color: #fff;
   padding: 0.5rem 1rem;
   border-radius: 999px;
@@ -571,13 +491,9 @@ body.edit-mode .editable:focus {
   .sheet {
     width: 100%;
     height: auto;
-    max-height: none;
     border: 0;
-    border-radius: 0;
     box-shadow: none;
     padding: 3.5vw 4vw 5vw;
-    display: flex;
-    flex-direction: column;
     gap: 3.5vw;
     font-size: 1.05rem;
   }
@@ -590,7 +506,7 @@ body.edit-mode .editable:focus {
     flex-direction: column;
     align-items: stretch;
     gap: 0.15rem;
-    padding: 0.6rem 0.7rem;
+    padding: 0.55rem 0.65rem;
   }
 
   .zman-label {
@@ -602,15 +518,13 @@ body.edit-mode .editable:focus {
     text-align: center;
   }
 
-  .board-cols,
-  .week-grid {
+  .cols {
     grid-template-columns: 1fr;
     gap: 3vw;
   }
 
   .band-main {
     font-size: 1.05rem;
-    padding: 0.45rem 0.65rem;
   }
 
   .band-sub {
@@ -665,7 +579,6 @@ body.capture-print .page-wrap {
 body.capture-print .sheet {
   border: 0;
   box-shadow: none;
-  border-radius: 0;
 }
 
 @page {
@@ -704,22 +617,11 @@ body.capture-print .sheet {
   .sheet {
     width: 210mm !important;
     height: 297mm !important;
-    max-height: 297mm !important;
     margin: 0 !important;
     padding: 5mm 6mm !important;
     border: 0 !important;
     box-shadow: none !important;
-    border-radius: 0 !important;
     overflow: hidden !important;
-    page-break-inside: avoid;
-    background: #fff !important;
-  }
-
-  .board,
-  .col,
-  .week-block,
-  .zman-chip {
-    background: #fff !important;
   }
 
   .band-main,
@@ -730,12 +632,12 @@ body.capture-print .sheet {
   }
 
   .band-main {
-    background: #6e6e78 !important;
+    background: #6b6b75 !important;
     color: #fff !important;
   }
 
   .band-sub {
-    background: #8a8a96 !important;
+    background: #8d8d98 !important;
     color: #fff !important;
   }
 
@@ -746,11 +648,5 @@ body.capture-print .sheet {
 
   .important-message {
     background: #fff !important;
-    -webkit-print-color-adjust: exact;
-    print-color-adjust: exact;
-  }
-
-  .shabbat-shalom {
-    color: #111 !important;
   }
 }
