@@ -1,6 +1,8 @@
 /**
- * צילום העלון לתמונה — html2canvas כברירת מחדל (יציב יותר מול פונטים/mm).
+ * צילום העלון לתמונה אנכית בסגנון טלפון (כמו תצוגת מובייל).
  */
+
+const PHONE_WIDTH = 390;
 
 function waitFrames(n = 2) {
   return new Promise((resolve) => {
@@ -44,29 +46,42 @@ export async function captureSheetToPng(sheet) {
   if (!sheet) throw new Error('לא נמצא עלון לצילום');
 
   const html2canvas = await ensureHtml2Canvas();
-  document.body.classList.add('capture-print');
+  const wrap = sheet.closest('.page-wrap');
 
-  // html2canvas מתקשה עם יחידות mm — מעבירים לפיקסלים זמנית
-  const prev = {
+  const prevSheet = {
     width: sheet.style.width,
     height: sheet.style.height,
     maxHeight: sheet.style.maxHeight,
     minHeight: sheet.style.minHeight,
     transform: sheet.style.transform,
   };
+  const prevWrap = wrap
+    ? { width: wrap.style.width, margin: wrap.style.margin, maxWidth: wrap.style.maxWidth }
+    : null;
+
+  document.body.classList.add('capture-print', 'capture-phone');
 
   try {
     await document.fonts?.ready?.catch?.(() => {});
-    await waitFrames(2);
 
-    const rect = sheet.getBoundingClientRect();
-    const w = Math.max(1, Math.round(rect.width));
-    const h = Math.max(1, Math.round(rect.height));
-    sheet.style.width = `${w}px`;
-    sheet.style.height = `${h}px`;
-    sheet.style.maxHeight = `${h}px`;
-    sheet.style.minHeight = `${h}px`;
+    if (wrap) {
+      wrap.style.width = `${PHONE_WIDTH}px`;
+      wrap.style.maxWidth = `${PHONE_WIDTH}px`;
+      wrap.style.margin = '0';
+    }
+
+    // פריסת טלפון: גובה לפי תוכן
+    sheet.style.width = `${PHONE_WIDTH}px`;
+    sheet.style.height = 'auto';
+    sheet.style.maxHeight = 'none';
+    sheet.style.minHeight = '0';
     sheet.style.transform = 'none';
+
+    await waitFrames(3);
+
+    const w = PHONE_WIDTH;
+    const h = Math.max(1, Math.ceil(sheet.scrollHeight));
+    sheet.style.height = `${h}px`;
 
     await waitFrames(2);
 
@@ -86,17 +101,24 @@ export async function captureSheetToPng(sheet) {
       x: 0,
       y: 0,
       onclone: (doc) => {
+        doc.body.classList.add('capture-print', 'capture-phone');
+        const clonedWrap = doc.querySelector('.page-wrap');
         const cloned = doc.querySelector('.sheet');
-        if (!cloned) return;
-        cloned.style.width = `${w}px`;
-        cloned.style.height = `${h}px`;
-        cloned.style.maxHeight = `${h}px`;
-        cloned.style.minHeight = `${h}px`;
-        cloned.style.transform = 'none';
-        cloned.style.boxShadow = 'none';
-        cloned.style.border = 'none';
-        // הסתרת הערות מקור גם בעותק
-        doc.querySelectorAll('.source-note, .msg-remove').forEach((el) => {
+        if (clonedWrap) {
+          clonedWrap.style.width = `${w}px`;
+          clonedWrap.style.maxWidth = `${w}px`;
+          clonedWrap.style.margin = '0';
+        }
+        if (cloned) {
+          cloned.style.width = `${w}px`;
+          cloned.style.height = `${h}px`;
+          cloned.style.maxHeight = 'none';
+          cloned.style.minHeight = '0';
+          cloned.style.transform = 'none';
+          cloned.style.boxShadow = 'none';
+          cloned.style.border = 'none';
+        }
+        doc.querySelectorAll('.source-note, .msg-remove, .toolbar, .edit-panel').forEach((el) => {
           el.style.display = 'none';
         });
       },
@@ -115,11 +137,16 @@ export async function captureSheetToPng(sheet) {
     }
     return blob;
   } finally {
-    sheet.style.width = prev.width;
-    sheet.style.height = prev.height;
-    sheet.style.maxHeight = prev.maxHeight;
-    sheet.style.minHeight = prev.minHeight;
-    sheet.style.transform = prev.transform;
-    document.body.classList.remove('capture-print');
+    sheet.style.width = prevSheet.width;
+    sheet.style.height = prevSheet.height;
+    sheet.style.maxHeight = prevSheet.maxHeight;
+    sheet.style.minHeight = prevSheet.minHeight;
+    sheet.style.transform = prevSheet.transform;
+    if (wrap && prevWrap) {
+      wrap.style.width = prevWrap.width;
+      wrap.style.margin = prevWrap.margin;
+      wrap.style.maxWidth = prevWrap.maxWidth;
+    }
+    document.body.classList.remove('capture-print', 'capture-phone');
   }
 }

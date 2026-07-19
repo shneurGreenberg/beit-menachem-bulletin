@@ -446,6 +446,18 @@ function downloadBlob(blob, filename) {
   setTimeout(() => URL.revokeObjectURL(url), 2000);
 }
 
+function publicViewUrl() {
+  const u = new URL(location.href);
+  u.searchParams.set('view', 'public');
+  u.hash = '';
+  return u.toString();
+}
+
+function shareCaption(model) {
+  const title = `${CONFIG.synagogue.shortName || 'בית מנחם'} · ${currentTitle(model)}`;
+  return `${title}\n\nלצפייה בעלון:\n${publicViewUrl()}`;
+}
+
 function showSharePreview(blob, caption) {
   let overlay = $('#share-overlay');
   if (!overlay) {
@@ -459,7 +471,7 @@ function showSharePreview(blob, caption) {
           <button type="button" class="share-close" aria-label="סגירה">×</button>
         </header>
         <img class="share-preview" alt="תצוגה מקדימה של העלון" />
-        <p class="share-hint">בטלפון: לחצו לחיצה ארוכה על התמונה ← שיתוף לוואטסאפ.<br/>במחשב: הורידו וצרפו בוואטסאפ.</p>
+        <p class="share-hint">בטלפון: לחצו לחיצה ארוכה על התמונה ← שיתוף לוואטסאפ.<br/>במחשב: הורידו וצרפו בוואטסאפ. הקישור לצפייה מצורף להודעה.</p>
         <div class="share-actions">
           <button type="button" class="share-download">הורדת תמונה</button>
           <button type="button" class="share-wa">פתיחת וואטסאפ</button>
@@ -481,9 +493,7 @@ function showSharePreview(blob, caption) {
   const fileName = `alon-shabbat.png`;
   overlay.querySelector('.share-download').onclick = () => downloadBlob(blob, fileName);
   overlay.querySelector('.share-wa').onclick = () => {
-    const wa =
-      'https://wa.me/?text=' +
-      encodeURIComponent(`${caption}\n\n(צרפו את תמונת העלון)`);
+    const wa = 'https://wa.me/?text=' + encodeURIComponent(`${caption}\n\n(צרפו גם את תמונת העלון)`);
     window.open(wa, '_blank', 'noopener');
   };
 
@@ -504,7 +514,7 @@ async function shareWhatsApp() {
     if (!sheet) throw new Error('העלון עדיין לא נטען');
     const blob = await captureSheetToPng(sheet);
     const file = new File([blob], `alon-${m.friday || 'shabbat'}.png`, { type: 'image/png' });
-    const caption = `${CONFIG.synagogue.shortName || 'בית מנחם'} · ${currentTitle(m)}`;
+    const caption = shareCaption(m);
 
     if (navigator.canShare?.({ files: [file] })) {
       try {
@@ -516,7 +526,6 @@ async function shareWhatsApp() {
         showToast('שותף');
         return;
       } catch (shareErr) {
-        // המשתמש ביטל / השיתוף נכשל — ממשיכים לתצוגה מקדימה
         if (shareErr?.name === 'AbortError') {
           showToast('השיתוף בוטל');
           return;
@@ -534,6 +543,54 @@ async function shareWhatsApp() {
       btn.disabled = false;
       btn.textContent = prev || 'שיתוף בוואטסאפ';
     }
+  }
+}
+
+function applyPublicViewMode() {
+  const params = new URLSearchParams(location.search);
+  if (params.get('view') === 'public') {
+    document.body.classList.add('public-view');
+  }
+}
+
+function clearPrintFit() {
+  const sheet = $('.sheet');
+  if (!sheet) return;
+  sheet.classList.remove('is-print-scaling');
+  sheet.style.transform = '';
+  sheet.style.width = '';
+  sheet.style.height = '';
+  sheet.style.transformOrigin = '';
+}
+
+/** בהדפסה בלבד: הקטנה קלה כדי שהכל ייכנס לעמוד A4 אחד */
+function fitSheetForPrint() {
+  const sheet = $('.sheet');
+  if (!sheet) return;
+  clearPrintFit();
+  sheet.classList.add('is-print-scaling');
+
+  const prev = {
+    height: sheet.style.height,
+    maxHeight: sheet.style.maxHeight,
+    overflow: sheet.style.overflow,
+  };
+  sheet.style.height = 'auto';
+  sheet.style.maxHeight = 'none';
+  sheet.style.overflow = 'visible';
+  const contentH = Math.max(sheet.scrollHeight, sheet.getBoundingClientRect().height);
+  sheet.style.height = prev.height;
+  sheet.style.maxHeight = prev.maxHeight;
+  sheet.style.overflow = prev.overflow;
+
+  const pageHpx = (297 * 96) / 25.4;
+  let scale = Math.min(1, (pageHpx * 0.97) / contentH);
+  if (scale < 0.7) scale = 0.7;
+  if (scale < 0.995) {
+    sheet.style.transformOrigin = 'top center';
+    sheet.style.transform = `scale(${scale})`;
+    // שומרים רוחב יציב אחרי scale
+    sheet.style.width = '210mm';
   }
 }
 
@@ -662,13 +719,17 @@ function bindUi() {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
+  applyPublicViewMode();
   bindUi();
-  if (isEditUnlocked()) {
+  if (!document.body.classList.contains('public-view') && isEditUnlocked()) {
     state.editMode = true;
     setHidden('#edit-panel', false);
   }
   updateEditButtons();
   loadWeek();
+
+  window.addEventListener('beforeprint', fitSheetForPrint);
+  window.addEventListener('afterprint', clearPrintFit);
 });
 
 // silence unused in lint

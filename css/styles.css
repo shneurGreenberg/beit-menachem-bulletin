@@ -637,6 +637,18 @@ body.edit-mode .editable:focus {
   }
 }
 
+/* מצב צפייה ציבורי — בלי כפתורי עריכה */
+body.public-view .toolbar,
+body.public-view .edit-panel,
+body.public-view .side-panel,
+body.public-view #toast {
+  display: none !important;
+}
+
+body.public-view .page-wrap {
+  margin-top: 0.75rem;
+}
+
 body.capture-print {
   background: #fff !important;
 }
@@ -647,18 +659,80 @@ body.capture-print .side-panel,
 body.capture-print #toast,
 body.capture-print .source-note,
 body.capture-print .msg-remove,
-body.capture-print #loading {
+body.capture-print #loading,
+body.capture-print .share-overlay {
   display: none !important;
 }
 
-body.capture-print .page-wrap {
-  margin: 0;
-  width: var(--a4-w);
+/* צילום וואטסאפ — פריסת טלפון אנכית */
+body.capture-phone .page-wrap {
+  margin: 0 !important;
+  width: 390px !important;
+  max-width: 390px !important;
 }
 
-body.capture-print .sheet {
-  border: 0;
-  box-shadow: none;
+body.capture-phone .sheet {
+  width: 390px !important;
+  height: auto !important;
+  max-height: none !important;
+  min-height: 0 !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  padding: 18px 16px 22px !important;
+  gap: 14px !important;
+  font-size: 17px !important;
+  display: flex !important;
+  flex-direction: column !important;
+  overflow: visible !important;
+}
+
+body.capture-phone .mast-name {
+  font-size: 1.15rem !important;
+}
+
+body.capture-phone .zman-chip {
+  flex-direction: column !important;
+  align-items: stretch !important;
+  gap: 0.15rem !important;
+  padding: 0.55rem 0.65rem !important;
+}
+
+body.capture-phone .zman-label {
+  font-size: 0.95rem !important;
+}
+
+body.capture-phone .zman-time {
+  font-size: 2.1rem !important;
+  text-align: center !important;
+}
+
+body.capture-phone .cols {
+  grid-template-columns: 1fr !important;
+  gap: 14px !important;
+}
+
+body.capture-phone .band-main {
+  font-size: 1.05rem !important;
+}
+
+body.capture-phone .band-sub {
+  font-size: 0.95rem !important;
+}
+
+body.capture-phone .row-label {
+  font-size: 1.05rem !important;
+}
+
+body.capture-phone .row-time {
+  font-size: 1.25rem !important;
+}
+
+body.capture-phone .msg-body {
+  font-size: 1.05rem !important;
+}
+
+body.capture-phone .board {
+  flex: 0 0 auto !important;
 }
 
 @page {
@@ -681,7 +755,8 @@ body.capture-print .sheet {
   #toast,
   .source-note,
   .msg-remove,
-  #loading {
+  #loading,
+  .share-overlay {
     display: none !important;
   }
 
@@ -692,16 +767,78 @@ body.capture-print .sheet {
   .page-wrap {
     margin: 0 !important;
     width: 210mm !important;
+    max-width: none !important;
   }
 
+  /* ברירת מחדל למסך נשארת; בהדפסה מקטינים קצת כדי למנוע חיתוך */
   .sheet {
     width: 210mm !important;
-    height: 297mm !important;
-    margin: 0 !important;
-    padding: 5mm 6mm !important;
+    height: auto !important;
+    max-height: none !important;
+    margin: 0 auto !important;
+    padding: 4.5mm 5.5mm !important;
     border: 0 !important;
     box-shadow: none !important;
-    overflow: hidden !important;
+    overflow: visible !important;
+    gap: 2mm !important;
+    font-size: 11.5pt !important;
+    transform-origin: top center;
+  }
+
+  .sheet.is-print-scaling {
+    /* ה-scale מגיע מ-JS לפי גובה אמיתי */
+  }
+
+  .mast-name {
+    font-size: 13.5pt !important;
+  }
+
+  .zman-time {
+    font-size: 22pt !important;
+  }
+
+  .zman-label {
+    font-size: 11pt !important;
+  }
+
+  .band-main {
+    font-size: 11.5pt !important;
+    padding: 1.2mm 2mm !important;
+  }
+
+  .band-sub {
+    font-size: 10.5pt !important;
+    padding: 1mm 2mm !important;
+  }
+
+  .row {
+    padding: 0.8mm 1mm !important;
+  }
+
+  .row-label {
+    font-size: 11.5pt !important;
+  }
+
+  .row-time {
+    font-size: 13.5pt !important;
+  }
+
+  .msg-body {
+    font-size: 11.5pt !important;
+  }
+
+  .board {
+    flex: 0 0 auto !important;
+    padding: 2mm !important;
+    gap: 1.5mm !important;
+  }
+
+  .shabbat-shalom {
+    font-size: 13pt !important;
+  }
+
+  .slogan {
+    font-size: 10pt !important;
   }
 
   .band-main,
