@@ -1,5 +1,5 @@
 import { CONFIG, DEFAULT_PASSWORD, hashPassword } from './config.js';
-import { buildWeekModel, applyOverrides, weekStorageKey } from './times.js';
+import { buildWeekModel, applyOverrides, normalizeMessages, weekStorageKey } from './times.js';
 import {
   getWeekOverrides,
   setWeekOverrides,
@@ -82,12 +82,12 @@ function renderFixedLessons(model, editable) {
         .map(
           (it, ii) => `
           <div class="row">
-            <span class="row-time ${editable ? 'editable' : ''}"
-                  data-lesson="${di}-${ii}-time"
-                  ${editable ? 'contenteditable="true"' : ''}>${escapeHtml(it.time)}</span>
             <span class="row-label ${editable ? 'editable' : ''}"
                   data-lesson="${di}-${ii}-label"
                   ${editable ? 'contenteditable="true"' : ''}>${escapeHtml(it.label)}</span>
+            <span class="row-time ${editable ? 'editable' : ''}"
+                  data-lesson="${di}-${ii}-time"
+                  ${editable ? 'contenteditable="true"' : ''}>${escapeHtml(it.time)}</span>
           </div>`,
         )
         .join('');
@@ -95,16 +95,57 @@ function renderFixedLessons(model, editable) {
         <div class="lesson-block">
           <h4 class="${editable ? 'editable' : ''}" data-lesson-day="${di}"
               ${editable ? 'contenteditable="true"' : ''}>${escapeHtml(day.dayName)}</h4>
-          ${lines}
+          <div class="schedule">${lines}</div>
         </div>`;
     })
     .join('');
 }
 
+function getMessages(model) {
+  return normalizeMessages(model);
+}
+
+function renderMessages(model, editable) {
+  const wrap = $('#important-messages');
+  if (!wrap) return;
+  const messages = getMessages(model);
+  if (!messages.length && !editable) {
+    wrap.innerHTML = '';
+    return;
+  }
+
+  const cards = messages
+    .map(
+      (msg, i) => `
+      <aside class="important-message" data-msg-index="${i}">
+        <div class="msg-head">
+          <div class="msg-badge">הודעה חשובה${messages.length > 1 ? ` ${i + 1}` : ''}</div>
+          ${
+            editable
+              ? `<button type="button" class="msg-remove" data-remove-msg="${i}" aria-label="מחיקת הודעה">×</button>`
+              : ''
+          }
+        </div>
+        <div class="msg-body ${editable ? 'editable' : ''}" data-msg-body="${i}"
+             ${editable ? 'contenteditable="true"' : ''}>${escapeHtml(msg).replace(/\n/g, '<br>')}</div>
+      </aside>`,
+    )
+    .join('');
+
+  const emptyHint =
+    editable && !messages.length
+      ? `<aside class="important-message is-empty">
+           <div class="msg-badge">הודעה חשובה</div>
+           <div class="msg-body muted">לחצו ״הוסף הודעה״ או בחרו תבנית מהרשימה</div>
+         </aside>`
+      : '';
+
+  wrap.innerHTML = cards + emptyHint;
+}
+
 function renderBulletin(model) {
   const editable = state.editMode && !state.viewingHistoryId;
   const t = model.times;
-  const msg = (model.importantMessage || '').trim();
 
   $('#synagogue-name').textContent = CONFIG.synagogue.nameDisplay;
   $('#week-title').textContent = currentTitle(model);
@@ -126,23 +167,7 @@ function renderBulletin(model) {
     sunsetFriday: 'שקיעה',
   });
 
-  const msgEl = $('#important-message');
-  if (msg) {
-    msgEl.hidden = false;
-    msgEl.innerHTML = `
-      <div class="msg-badge">הודעה חשובה</div>
-      <div class="msg-body ${editable ? 'editable' : ''}" id="msg-body"
-           ${editable ? 'contenteditable="true"' : ''}>${escapeHtml(msg).replace(/\n/g, '<br>')}</div>`;
-  } else if (editable) {
-    msgEl.hidden = false;
-    msgEl.innerHTML = `
-      <div class="msg-badge">הודעה חשובה</div>
-      <div class="msg-body editable msg-placeholder" id="msg-body" contenteditable="true"
-           data-placeholder="true">לחצו להוספת הודעה חשובה לשבת…</div>`;
-  } else {
-    msgEl.hidden = true;
-    msgEl.innerHTML = '';
-  }
+  renderMessages(model, editable);
 
   const morning = `
     ${timeCell('shabbatChassidut', t.shabbatChassidut, editable)}
@@ -227,13 +252,9 @@ function collectEditsFromDom() {
     else if (autoVal == null) times[key] = val;
   });
 
-  let importantMessage = state.model.importantMessage || '';
-  const msgBody = $('#msg-body');
-  if (msgBody && !msgBody.dataset.placeholder) {
-    importantMessage = msgBody.innerText.replace(/\u00a0/g, ' ').trim();
-  } else if (msgBody?.dataset.placeholder) {
-    importantMessage = '';
-  }
+  const importantMessages = $$('[data-msg-body]')
+    .map((el) => el.innerText.replace(/\u00a0/g, ' ').trim())
+    .filter(Boolean);
 
   const labels = { ...state.model.labels };
   const far = $('#farbrengen-label');
@@ -259,10 +280,9 @@ function collectEditsFromDom() {
 
   const overrides = {
     times,
-    importantMessage,
+    importantMessages,
     labels,
     fixedLessons,
-    messageTemplateId: state.model.messageTemplateId || '',
   };
 
   // drop empty times
@@ -300,7 +320,7 @@ function populateTemplates() {
   const sel = $('#template-select');
   if (!sel) return;
   sel.innerHTML =
-    `<option value="">תבנית הודעה…</option>` +
+    `<option value="">הוסף מתבנית…</option>` +
     MESSAGE_TEMPLATES.map((t) => `<option value="${t.id}">${escapeHtml(t.name)}</option>`).join('');
 }
 
@@ -375,29 +395,87 @@ function updateEditButtons() {
   $('#btn-edit').setAttribute('aria-pressed', on ? 'true' : 'false');
 }
 
-function shareWhatsApp() {
+function downloadBlob(blob, filename) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 2000);
+}
+
+async function shareWhatsApp() {
   const m = state.model;
   if (!m) return;
-  const lines = [
-    CONFIG.synagogue.nameDisplay,
-    currentTitle(m),
-    '',
-    `הדלקת נרות: ${m.times.candleLighting}`,
-    `יציאת השבת: ${m.times.shabbatEnd}`,
-    '',
-    `שחרית שבת: ${m.times.shabbatShacharit}`,
-    `מנחה שבת: ${m.times.shabbatMincha}`,
-    '',
-    nextWeekTitle(m),
-    `מנחה ביום חול: ${m.times.weekdayMincha}`,
-    `ערבית ביום חול: ${m.times.weekdayArvit}`,
-  ];
-  if (m.importantMessage) {
-    lines.push('', '📌 ' + m.importantMessage);
+  const btn = $('#btn-whatsapp');
+  const prev = btn?.textContent;
+  if (btn) {
+    btn.disabled = true;
+    btn.textContent = 'יוצר תמונה…';
   }
-  lines.push('', location.href);
-  const url = 'https://wa.me/?text=' + encodeURIComponent(lines.join('\n'));
-  window.open(url, '_blank', 'noopener');
+  try {
+    const blob = await captureSheetImage();
+    const file = new File([blob], `alon-${m.friday || 'shabbat'}.png`, { type: 'image/png' });
+    const caption = `${CONFIG.synagogue.shortName || 'בית מנחם'} · ${currentTitle(m)}`;
+
+    if (navigator.canShare?.({ files: [file] })) {
+      await navigator.share({
+        files: [file],
+        title: 'עלון שבת',
+        text: caption,
+      });
+      showToast('שותף');
+      return;
+    }
+
+    downloadBlob(blob, file.name);
+    const wa = 'https://wa.me/?text=' + encodeURIComponent(`${caption}\n\n(צרפו את תמונת העלון שנשמרה)`);
+    window.open(wa, '_blank', 'noopener');
+    showToast('התמונה נשמרה — צרפו אותה בוואטסאפ');
+  } catch (err) {
+    console.error(err);
+    alert('לא הצלחנו ליצור תמונה לשיתוף. נסו שוב או השתמשו בהדפסה.');
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      btn.textContent = prev || 'שיתוף בוואטסאפ';
+    }
+  }
+}
+
+function persistMessages(messages) {
+  const overrides = getWeekOverrides(state.model.friday) || {};
+  overrides.importantMessages = messages;
+  delete overrides.importantMessage;
+  setWeekOverrides(state.model.friday, overrides);
+  state.model = applyOverrides(state.autoModel, overrides);
+  saveHistoryEntry(state.model);
+  renderBulletin(state.model);
+}
+
+function addMessage(text = '') {
+  if (!state.editMode) {
+    alert('יש להיכנס למצב עריכה כדי להוסיף הודעה');
+    return;
+  }
+  const messages = getMessages(state.model);
+  messages.push(text || 'הודעה חדשה…');
+  persistMessages(messages);
+  showToast('הודעה נוספה');
+  // פוקוס להודעה האחרונה
+  requestAnimationFrame(() => {
+    const el = $(`[data-msg-body="${messages.length - 1}"]`);
+    el?.focus();
+    if (el && (text === '' || text === 'הודעה חדשה…')) {
+      const range = document.createRange();
+      range.selectNodeContents(el);
+      const sel = window.getSelection();
+      sel?.removeAllRanges();
+      sel?.addRange(range);
+    }
+  });
 }
 
 function bindUi() {
@@ -428,6 +506,17 @@ function bindUi() {
   $('#btn-print').addEventListener('click', () => window.print());
 
   $('#btn-whatsapp').addEventListener('click', shareWhatsApp);
+
+  $('#btn-add-message').addEventListener('click', () => addMessage(''));
+
+  $('#important-messages').addEventListener('click', (e) => {
+    const btn = e.target.closest('[data-remove-msg]');
+    if (!btn || !state.editMode) return;
+    const idx = Number(btn.dataset.removeMsg);
+    const messages = getMessages(state.model).filter((_, i) => i !== idx);
+    persistMessages(messages);
+    showToast('הודעה נמחקה');
+  });
 
   $('#btn-history').addEventListener('click', () => {
     const panel = $('#history-panel');
@@ -467,13 +556,8 @@ function bindUi() {
       e.target.value = '';
       return;
     }
-    state.model.importantMessage = tpl.body;
-    state.model.messageTemplateId = id;
-    const overrides = getWeekOverrides(state.model.friday) || {};
-    overrides.importantMessage = tpl.body;
-    overrides.messageTemplateId = id;
-    setWeekOverrides(state.model.friday, overrides);
-    renderBulletin(state.model);
+    // תבנית תמיד מתווספת כהודעה חדשה — לא מחליפה קיימות
+    addMessage(tpl.body || '');
     e.target.value = '';
   });
 
@@ -490,6 +574,59 @@ function bindUi() {
   });
 }
 
+function clearPrintScale() {
+  const sheet = $('.sheet');
+  if (!sheet) return;
+  sheet.style.transform = '';
+  sheet.style.width = '';
+  sheet.classList.remove('is-print-fit');
+}
+
+/** מתאים את העלון לגובה עמוד A4 בודד (הדפסה / צילום) */
+function fitSheetToA4() {
+  const sheet = $('.sheet');
+  if (!sheet) return 1;
+  clearPrintScale();
+  // שטח מודפס בקירוב: A4 עם שוליים 8mm
+  const maxW = ((210 - 16) * 96) / 25.4;
+  const maxH = ((297 - 16) * 96) / 25.4;
+  const rect = sheet.getBoundingClientRect();
+  const scale = Math.min(1, maxW / rect.width, maxH / rect.height);
+  if (scale < 0.999) {
+    sheet.classList.add('is-print-fit');
+    sheet.style.transformOrigin = 'top center';
+    sheet.style.transform = `scale(${scale})`;
+    // שומר רוחב ויזואלי יציב אחרי scale
+    sheet.style.width = `${rect.width}px`;
+  }
+  return scale;
+}
+
+async function captureSheetImage() {
+  const sheet = $('.sheet');
+  if (!sheet) throw new Error('לא נמצא עלון לצילום');
+  const { toBlob } = await import('https://cdn.jsdelivr.net/npm/html-to-image@1.11.13/+esm');
+  document.body.classList.add('capture-print');
+  fitSheetToA4();
+  try {
+    await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+    const blob = await toBlob(sheet, {
+      pixelRatio: 2,
+      backgroundColor: '#ffffff',
+      cacheBust: true,
+      filter: (node) => {
+        if (!(node instanceof Element)) return true;
+        return !node.classList?.contains('source-note');
+      },
+    });
+    if (!blob) throw new Error('יצירת התמונה נכשלה');
+    return blob;
+  } finally {
+    document.body.classList.remove('capture-print');
+    clearPrintScale();
+  }
+}
+
 document.addEventListener('DOMContentLoaded', () => {
   bindUi();
   if (isEditUnlocked()) {
@@ -498,6 +635,13 @@ document.addEventListener('DOMContentLoaded', () => {
   }
   updateEditButtons();
   loadWeek();
+
+  window.addEventListener('beforeprint', () => {
+    fitSheetToA4();
+  });
+  window.addEventListener('afterprint', () => {
+    clearPrintScale();
+  });
 });
 
 // silence unused in lint

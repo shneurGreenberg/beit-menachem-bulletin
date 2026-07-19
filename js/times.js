@@ -278,8 +278,7 @@ function assembleModel({
       marotKodesh: 'מראות קודש',
     },
     specialDays: uniqueSpecials,
-    importantMessage: '',
-    messageTemplateId: '',
+    importantMessages: [],
     fixedLessons: structuredClone(CONFIG.fixedLessons),
   };
 }
@@ -378,12 +377,22 @@ function formatHebrewDateLabel(hdate) {
   return `${day} ${month} ${m[3]}`;
 }
 
+export function normalizeMessages(modelOrOverrides) {
+  if (Array.isArray(modelOrOverrides?.importantMessages)) {
+    return modelOrOverrides.importantMessages.filter((m) => String(m || '').trim());
+  }
+  const legacy = modelOrOverrides?.importantMessage;
+  if (legacy && String(legacy).trim()) return [String(legacy).trim()];
+  return [];
+}
+
 export function applyOverrides(model, overrides) {
   if (!overrides || !Object.keys(overrides).length) return model;
   const next = structuredClone(model);
   next.times = { ...next.times, ...overrides.times };
-  if (overrides.importantMessage !== undefined) next.importantMessage = overrides.importantMessage;
-  if (overrides.messageTemplateId !== undefined) next.messageTemplateId = overrides.messageTemplateId;
+  if (overrides.importantMessages !== undefined || overrides.importantMessage !== undefined) {
+    next.importantMessages = normalizeMessages(overrides);
+  }
   if (overrides.current) next.current = { ...next.current, ...overrides.current };
   if (overrides.nextWeek) next.nextWeek = { ...next.nextWeek, ...overrides.nextWeek };
   if (overrides.labels) next.labels = { ...next.labels, ...overrides.labels };

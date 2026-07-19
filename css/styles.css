@@ -174,14 +174,6 @@ body {
   border-bottom: 2px solid var(--ink);
 }
 
-.section-kicker {
-  font-size: 0.78rem;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--muted);
-}
-
 .section-title {
   margin: 0;
   font-family: var(--font-display);
@@ -295,13 +287,37 @@ body.edit-mode .editable:focus {
   background: #fffbea;
 }
 
-.important-message {
+.messages-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
   margin: 0.85rem 0;
+}
+
+.messages-wrap:empty {
+  display: none;
+  margin: 0;
+}
+
+.important-message {
   border: 3px solid var(--shabbat);
   border-radius: var(--radius);
   background: var(--shabbat-soft);
-  padding: 0.75rem 0.85rem;
+  padding: 0.65rem 0.75rem;
   position: relative;
+}
+
+.important-message.is-empty {
+  border-style: dashed;
+  opacity: 0.85;
+}
+
+.msg-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-bottom: 0.35rem;
 }
 
 .msg-badge {
@@ -313,7 +329,19 @@ body.edit-mode .editable:focus {
   letter-spacing: 0.04em;
   padding: 0.2rem 0.55rem;
   border-radius: 4px;
-  margin-bottom: 0.45rem;
+}
+
+.msg-remove {
+  border: 1px solid var(--shabbat);
+  background: #fff;
+  color: var(--shabbat);
+  width: 1.6rem;
+  height: 1.6rem;
+  border-radius: 50%;
+  cursor: pointer;
+  font-size: 1.1rem;
+  line-height: 1;
+  padding: 0;
 }
 
 .msg-body {
@@ -538,34 +566,155 @@ body.edit-mode .editable:focus {
   }
 }
 
+/* מראה הדפסה — גם לצילום לשיתוף בוואטסאפ */
+body.capture-print {
+  background: #fff !important;
+}
+
+body.capture-print .toolbar,
+body.capture-print .edit-panel,
+body.capture-print .side-panel,
+body.capture-print #toast,
+body.capture-print .source-note,
+body.capture-print .msg-remove {
+  display: none !important;
+}
+
+body.capture-print .page-wrap {
+  margin: 0;
+  max-width: none;
+  padding: 0;
+}
+
+body.capture-print .sheet,
+.sheet.is-print-fit {
+  border: 0;
+  box-shadow: none;
+  padding: 0;
+}
+
 @media print {
   body {
-    background: #fff;
+    background: #fff !important;
+    margin: 0;
   }
 
   .toolbar,
   .edit-panel,
   .side-panel,
   #toast,
-  .source-note {
+  .source-note,
+  .msg-remove,
+  #loading {
     display: none !important;
   }
 
   .page-wrap {
-    margin: 0;
-    max-width: none;
-    padding: 0;
+    margin: 0 !important;
+    max-width: none !important;
+    padding: 0 !important;
+    width: 100%;
   }
 
   .sheet {
-    border: 0;
-    box-shadow: none;
-    padding: 0;
+    border: 0 !important;
+    box-shadow: none !important;
+    padding: 0 !important;
+    width: 100%;
+    transform-origin: top center;
+  }
+
+  /* דחיסה לעמוד A4 בודד */
+  .ornament {
+    font-size: 0.7rem;
+    gap: 0.4rem;
+  }
+
+  .synagogue-name {
+    font-size: 12.5pt;
+    margin: 0.1rem 0 0.2rem;
+  }
+
+  .week-title {
+    font-size: 11pt;
+    margin: 0 0 0.35rem;
+  }
+
+  .section {
+    padding: 0.35rem 0.45rem 0.4rem;
+    margin-bottom: 0.35rem;
+    border-width: 1.5px;
+    border-radius: 6px;
+    break-inside: avoid-page;
+  }
+
+  .section-head {
+    margin-bottom: 0.35rem;
+    padding-bottom: 0.25rem;
+  }
+
+  .section-title {
+    font-size: 11pt;
+  }
+
+  .hero-times {
+    gap: 0.35rem;
+    margin-bottom: 0.35rem;
+  }
+
+  .hero-card {
+    padding: 0.3rem 0.25rem;
+    border-radius: 6px;
+  }
+
+  .hero-card .label {
+    font-size: 8.5pt;
+    margin-bottom: 0;
+  }
+
+  .hero-card .time {
+    font-size: 18pt;
+  }
+
+  .block-title {
+    margin: 0.3rem 0 0.1rem;
+    font-size: 9pt;
+    border-right-width: 3px;
+    padding-right: 0.3rem;
+  }
+
+  .row {
+    padding: 0.08rem 0.15rem;
+    gap: 0.4rem;
+  }
+
+  .row-label {
+    font-size: 9.5pt;
+  }
+
+  .row-time {
+    font-size: 10.5pt;
+    min-width: 2.8rem;
+  }
+
+  .row.highlight-line {
+    margin-top: 0.15rem;
+    padding: 0.15rem 0.3rem;
+  }
+
+  .row.sub-note {
+    font-size: 8.5pt;
+  }
+
+  .messages-wrap {
+    gap: 0.3rem;
+    margin: 0.3rem 0;
   }
 
   .important-message {
     background: #fff !important;
-    border-width: 2.5px;
+    border-width: 2px;
+    padding: 0.3rem 0.4rem;
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
   }
@@ -573,12 +722,63 @@ body.edit-mode .editable:focus {
   .msg-badge {
     background: #111 !important;
     color: #fff !important;
+    font-size: 7.5pt;
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
   }
 
-  .section {
-    break-inside: avoid;
+  .msg-head {
+    margin-bottom: 0.15rem;
+  }
+
+  .msg-body {
+    font-size: 9pt;
+  }
+
+  .divider {
+    margin: 0.1rem 0 0.3rem;
+    font-size: 0.7rem;
+    letter-spacing: 0.12em;
+  }
+
+  .lessons {
+    gap: 0.3rem;
+    margin-top: 0.2rem;
+  }
+
+  .lesson-block h4 {
+    font-size: 9.5pt;
+    margin-bottom: 0.1rem;
+  }
+
+  .special-days {
+    margin-top: 0.3rem;
+    padding: 0.3rem 0.4rem;
+  }
+
+  .special-days h3 {
+    font-size: 9pt;
+  }
+
+  .special-days li {
+    font-size: 8.5pt;
+  }
+
+  .sheet-footer {
+    margin-top: 0.35rem;
+  }
+
+  .shabbat-shalom {
+    font-size: 13pt;
+    margin: 0.1rem 0 0.2rem;
+  }
+
+  .footer-rule {
+    margin: 0.25rem auto;
+  }
+
+  .slogan {
+    font-size: 9pt;
   }
 
   a {
@@ -589,5 +789,5 @@ body.edit-mode .editable:focus {
 
 @page {
   size: A4;
-  margin: 12mm;
+  margin: 8mm;
 }

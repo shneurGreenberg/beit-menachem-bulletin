@@ -23,6 +23,7 @@
     <div class="edit-panel" id="edit-panel" hidden>
       <button type="button" id="btn-save">שמירת שינויים</button>
       <button type="button" id="btn-reset">איפוס לזמנים אוטומטיים</button>
+      <button type="button" id="btn-add-message">הוסף הודעה</button>
       <select id="template-select" aria-label="תבנית הודעה"></select>
       <span class="muted">סיסמת עריכה ראשונית: menachem</span>
     </div>
@@ -39,7 +40,6 @@
           <!-- שבת הנוכחית -->
           <section class="section section-shabbat" aria-labelledby="shabbat-heading">
             <header class="section-head">
-              <span class="section-kicker">חלק א׳</span>
               <h3 class="section-title" id="shabbat-heading">זמני השבת הנוכחית</h3>
             </header>
 
@@ -57,7 +57,7 @@
             <h4 class="block-title">ערב שבת</h4>
             <div class="schedule" id="friday-schedule"></div>
 
-            <aside class="important-message" id="important-message" hidden></aside>
+            <div class="messages-wrap" id="important-messages"></div>
 
             <h4 class="block-title">שבת בבוקר</h4>
             <div class="schedule" id="morning-schedule"></div>
@@ -71,7 +71,6 @@
           <!-- השבוע הקרוב -->
           <section class="section section-week" aria-labelledby="week-heading">
             <header class="section-head">
-              <span class="section-kicker">חלק ב׳</span>
               <h3 class="section-title" id="week-heading">
                 <span id="next-week-title">השבוע הקרוב</span>
               </h3>
