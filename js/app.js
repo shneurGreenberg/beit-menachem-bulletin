@@ -68,8 +68,8 @@ function currentTitle(model) {
 
 function nextWeekTitle(model) {
   const parts = ['השבוע הקרוב'];
-  if (model.nextWeek.parasha) parts.push(`פרשת ${model.nextWeek.parasha}`);
-  if (model.nextWeek.shabbatTitle) parts.push(`(${model.nextWeek.shabbatTitle})`);
+  if (model.nextWeek?.parasha) parts.push(`פרשת ${model.nextWeek.parasha}`);
+  if (model.nextWeek?.shabbatTitle) parts.push(model.nextWeek.shabbatTitle);
   return parts.join(' · ');
 }
 

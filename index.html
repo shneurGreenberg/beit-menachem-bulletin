@@ -33,62 +33,60 @@
     <div id="app" hidden>
       <main class="page-wrap">
         <article class="sheet" aria-label="עלון השבת">
-          <div class="ornament">שבת קודש</div>
-          <h1 class="synagogue-name" id="synagogue-name"></h1>
-          <h2 class="week-title" id="week-title"></h2>
+          <!-- פס עליון צפוף -->
+          <header class="mast">
+            <div class="mast-name" id="synagogue-name"></div>
+            <div class="mast-week" id="week-title"></div>
+          </header>
 
-          <!-- שבת הנוכחית -->
-          <section class="section section-shabbat" aria-labelledby="shabbat-heading">
-            <header class="section-head">
-              <h3 class="section-title" id="shabbat-heading">זמני השבת הנוכחית</h3>
-            </header>
-
-            <div class="hero-times">
-              <div class="hero-card">
-                <span class="label">שעת הדלקת נרות</span>
-                <span class="time" id="hero-candles-time">--:--</span>
-              </div>
-              <div class="hero-card">
-                <span class="label">שעת יציאת השבת</span>
-                <span class="time" id="hero-end-time">--:--</span>
-              </div>
+          <!-- נרות / יציאה בשורה אחת -->
+          <div class="zman-strip" aria-label="הדלקה ויציאה">
+            <div class="zman-chip">
+              <span class="zman-label">הדלקת נרות</span>
+              <span class="zman-time" id="hero-candles-time">--:--</span>
             </div>
+            <div class="zman-chip">
+              <span class="zman-label">יציאת השבת</span>
+              <span class="zman-time" id="hero-end-time">--:--</span>
+            </div>
+          </div>
 
-            <h4 class="block-title">ערב שבת</h4>
-            <div class="schedule" id="friday-schedule"></div>
+          <div class="messages-wrap" id="important-messages"></div>
 
-            <div class="messages-wrap" id="important-messages"></div>
-
-            <h4 class="block-title">שבת בבוקר</h4>
-            <div class="schedule" id="morning-schedule"></div>
-
-            <h4 class="block-title">שבת אחר הצהריים</h4>
-            <div class="schedule" id="afternoon-schedule"></div>
+          <!-- שבת: שני טורים -->
+          <section class="board board-shabbat" aria-label="זמני השבת">
+            <div class="col">
+              <div class="band">ערב שבת</div>
+              <div class="schedule" id="friday-schedule"></div>
+              <div class="band">שבת בבוקר</div>
+              <div class="schedule" id="morning-schedule"></div>
+            </div>
+            <div class="col">
+              <div class="band">שבת אחר הצהריים</div>
+              <div class="schedule" id="afternoon-schedule"></div>
+            </div>
           </section>
 
-          <div class="divider" aria-hidden="true">✦ ✦ ✦</div>
-
-          <!-- השבוע הקרוב -->
-          <section class="section section-week" aria-labelledby="week-heading">
-            <header class="section-head">
-              <h3 class="section-title" id="week-heading">
-                <span id="next-week-title">השבוע הקרוב</span>
-              </h3>
-            </header>
-
-            <h4 class="block-title">זמני התפילות בימי החול</h4>
-            <div class="schedule" id="weekday-schedule"></div>
-
-            <h4 class="block-title">שיעורים קבועים</h4>
-            <div class="lessons" id="fixed-lessons"></div>
-
+          <!-- שבוע קרוב: פס + רשת -->
+          <section class="board board-week" aria-label="השבוע הקרוב">
+            <div class="band band-week" id="next-week-title">השבוע הקרוב</div>
+            <div class="week-grid">
+              <div class="week-block">
+                <div class="band-sm">תפילות בימי חול</div>
+                <div class="schedule" id="weekday-schedule"></div>
+              </div>
+              <div class="week-block">
+                <div class="band-sm">שיעורים קבועים</div>
+                <div class="lessons" id="fixed-lessons"></div>
+              </div>
+            </div>
             <div id="special-days-wrap"></div>
           </section>
 
           <footer class="sheet-footer">
-            <p class="shabbat-shalom">שבת שלום</p>
-            <hr class="footer-rule" />
-            <p class="slogan" id="slogan"></p>
+            <span class="shabbat-shalom">שבת שלום</span>
+            <span class="footer-sep">·</span>
+            <span class="slogan" id="slogan"></span>
           </footer>
 
           <p class="source-note" id="source-note"></p>
