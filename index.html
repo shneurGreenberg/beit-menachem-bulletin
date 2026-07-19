@@ -33,10 +33,9 @@
     <div id="app" hidden>
       <main class="page-wrap">
         <article class="sheet" aria-label="עלון השבת">
-          <!-- פס עליון צפוף -->
+          <!-- פס עליון — רק שם בית הכנסת -->
           <header class="mast">
             <div class="mast-name" id="synagogue-name"></div>
-            <div class="mast-week" id="week-title"></div>
           </header>
 
           <!-- נרות / יציאה בשורה אחת -->
@@ -45,7 +44,7 @@
               <span class="zman-label">הדלקת נרות</span>
               <span class="zman-time" id="hero-candles-time">--:--</span>
             </div>
-            <div class="zman-chip">
+            <div class="zman-chip accent">
               <span class="zman-label">יציאת השבת</span>
               <span class="zman-time" id="hero-end-time">--:--</span>
             </div>
@@ -53,30 +52,33 @@
 
           <div class="messages-wrap" id="important-messages"></div>
 
-          <!-- שבת: שני טורים -->
+          <!-- שבת: כותרת זהה לשבוע + שני טורים -->
           <section class="board board-shabbat" aria-label="זמני השבת">
-            <div class="col">
-              <div class="band">ערב שבת</div>
-              <div class="schedule" id="friday-schedule"></div>
-              <div class="band">שבת בבוקר</div>
-              <div class="schedule" id="morning-schedule"></div>
-            </div>
-            <div class="col">
-              <div class="band">שבת אחר הצהריים</div>
-              <div class="schedule" id="afternoon-schedule"></div>
+            <div class="band band-main" id="week-title">השבת</div>
+            <div class="board-cols">
+              <div class="col">
+                <div class="band band-sub">ערב שבת</div>
+                <div class="schedule" id="friday-schedule"></div>
+                <div class="band band-sub">שבת בבוקר</div>
+                <div class="schedule" id="morning-schedule"></div>
+              </div>
+              <div class="col">
+                <div class="band band-sub">שבת אחר הצהריים</div>
+                <div class="schedule" id="afternoon-schedule"></div>
+              </div>
             </div>
           </section>
 
-          <!-- שבוע קרוב: פס + רשת -->
+          <!-- שבוע קרוב -->
           <section class="board board-week" aria-label="השבוע הקרוב">
-            <div class="band band-week" id="next-week-title">השבוע הקרוב</div>
+            <div class="band band-main" id="next-week-title">השבוע הקרוב</div>
             <div class="week-grid">
               <div class="week-block">
-                <div class="band-sm">תפילות בימי חול</div>
+                <div class="band band-sub">תפילות בימי חול</div>
                 <div class="schedule" id="weekday-schedule"></div>
               </div>
               <div class="week-block">
-                <div class="band-sm">שיעורים קבועים</div>
+                <div class="band band-sub">שיעורים קבועים</div>
                 <div class="lessons" id="fixed-lessons"></div>
               </div>
             </div>
