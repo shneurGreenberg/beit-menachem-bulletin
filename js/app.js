@@ -11,6 +11,7 @@ import {
   setEditUnlocked,
 } from './storage.js';
 import { MESSAGE_TEMPLATES, getTemplate } from './templates.js';
+import { captureSheetToPng } from './capture.js';
 
 const state = {
   model: null,
@@ -445,6 +446,50 @@ function downloadBlob(blob, filename) {
   setTimeout(() => URL.revokeObjectURL(url), 2000);
 }
 
+function showSharePreview(blob, caption) {
+  let overlay = $('#share-overlay');
+  if (!overlay) {
+    overlay = document.createElement('div');
+    overlay.id = 'share-overlay';
+    overlay.className = 'share-overlay';
+    overlay.innerHTML = `
+      <div class="share-dialog" role="dialog" aria-label="שיתוף עלון">
+        <header>
+          <strong>תמונת העלון מוכנה</strong>
+          <button type="button" class="share-close" aria-label="סגירה">×</button>
+        </header>
+        <img class="share-preview" alt="תצוגה מקדימה של העלון" />
+        <p class="share-hint">בטלפון: לחצו לחיצה ארוכה על התמונה ← שיתוף לוואטסאפ.<br/>במחשב: הורידו וצרפו בוואטסאפ.</p>
+        <div class="share-actions">
+          <button type="button" class="share-download">הורדת תמונה</button>
+          <button type="button" class="share-wa">פתיחת וואטסאפ</button>
+        </div>
+      </div>`;
+    document.body.appendChild(overlay);
+    overlay.querySelector('.share-close').addEventListener('click', () => {
+      overlay.hidden = true;
+      const img = overlay.querySelector('.share-preview');
+      if (img?.src?.startsWith('blob:')) URL.revokeObjectURL(img.src);
+    });
+  }
+
+  const url = URL.createObjectURL(blob);
+  const img = overlay.querySelector('.share-preview');
+  if (img.src?.startsWith('blob:')) URL.revokeObjectURL(img.src);
+  img.src = url;
+
+  const fileName = `alon-shabbat.png`;
+  overlay.querySelector('.share-download').onclick = () => downloadBlob(blob, fileName);
+  overlay.querySelector('.share-wa').onclick = () => {
+    const wa =
+      'https://wa.me/?text=' +
+      encodeURIComponent(`${caption}\n\n(צרפו את תמונת העלון)`);
+    window.open(wa, '_blank', 'noopener');
+  };
+
+  overlay.hidden = false;
+}
+
 async function shareWhatsApp() {
   const m = state.model;
   if (!m) return;
@@ -455,27 +500,35 @@ async function shareWhatsApp() {
     btn.textContent = 'יוצר תמונה…';
   }
   try {
-    const blob = await captureSheetImage();
+    const sheet = $('.sheet');
+    if (!sheet) throw new Error('העלון עדיין לא נטען');
+    const blob = await captureSheetToPng(sheet);
     const file = new File([blob], `alon-${m.friday || 'shabbat'}.png`, { type: 'image/png' });
     const caption = `${CONFIG.synagogue.shortName || 'בית מנחם'} · ${currentTitle(m)}`;
 
     if (navigator.canShare?.({ files: [file] })) {
-      await navigator.share({
-        files: [file],
-        title: 'עלון שבת',
-        text: caption,
-      });
-      showToast('שותף');
-      return;
+      try {
+        await navigator.share({
+          files: [file],
+          title: 'עלון שבת',
+          text: caption,
+        });
+        showToast('שותף');
+        return;
+      } catch (shareErr) {
+        // המשתמש ביטל / השיתוף נכשל — ממשיכים לתצוגה מקדימה
+        if (shareErr?.name === 'AbortError') {
+          showToast('השיתוף בוטל');
+          return;
+        }
+      }
     }
 
-    downloadBlob(blob, file.name);
-    const wa = 'https://wa.me/?text=' + encodeURIComponent(`${caption}\n\n(צרפו את תמונת העלון שנשמרה)`);
-    window.open(wa, '_blank', 'noopener');
-    showToast('התמונה נשמרה — צרפו אותה בוואטסאפ');
+    showSharePreview(blob, caption);
+    showToast('התמונה מוכנה לשיתוף');
   } catch (err) {
-    console.error(err);
-    alert('לא הצלחנו ליצור תמונה לשיתוף. נסו שוב או השתמשו בהדפסה.');
+    console.error('shareWhatsApp', err);
+    alert(`לא הצלחנו ליצור תמונה לשיתוף.\n${err?.message || err}`);
   } finally {
     if (btn) {
       btn.disabled = false;
@@ -606,39 +659,6 @@ function bindUi() {
   $('#btn-close-history')?.addEventListener('click', () => {
     setHidden('#history-panel', true);
   });
-}
-
-async function captureSheetImage() {
-  const sheet = $('.sheet');
-  if (!sheet) throw new Error('לא נמצא עלון לצילום');
-  const { toBlob } = await import('https://cdn.jsdelivr.net/npm/html-to-image@1.11.13/+esm');
-  document.body.classList.add('capture-print');
-  try {
-    await document.fonts?.ready;
-    await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
-    const blob = await toBlob(sheet, {
-      width: Math.round((210 / 25.4) * 96),
-      height: Math.round((297 / 25.4) * 96),
-      pixelRatio: 2,
-      backgroundColor: '#ffffff',
-      cacheBust: true,
-      style: {
-        width: '210mm',
-        height: '297mm',
-        minHeight: '297mm',
-        transform: 'none',
-        margin: '0',
-      },
-      filter: (node) => {
-        if (!(node instanceof Element)) return true;
-        return !node.classList?.contains('source-note');
-      },
-    });
-    if (!blob) throw new Error('יצירת התמונה נכשלה');
-    return blob;
-  } finally {
-    document.body.classList.remove('capture-print');
-  }
 }
 
 document.addEventListener('DOMContentLoaded', () => {
