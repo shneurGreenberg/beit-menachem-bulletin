@@ -261,11 +261,6 @@ function renderBulletin(model) {
     'has-overrides',
     Boolean(model._overrides && Object.keys(model._overrides.times || {}).length),
   );
-
-  // אחרי רינדור — יישור התצוגה המקדימה למראה ההדפסה
-  requestAnimationFrame(() => {
-    requestAnimationFrame(() => fitSheetToA4Page());
-  });
 }
 
 function bindRowLabels(rootSel, map) {
@@ -558,52 +553,6 @@ function applyPublicViewMode() {
   }
 }
 
-function clearPrintFit() {
-  const sheet = $('.sheet');
-  if (!sheet) return;
-  sheet.classList.remove('is-print-scaling');
-  sheet.style.transform = '';
-  sheet.style.width = '';
-  sheet.style.height = '';
-  sheet.style.minHeight = '';
-  sheet.style.transformOrigin = '';
-}
-
-function isPhoneLayoutViewport() {
-  return window.matchMedia('(max-width: 820px)').matches;
-}
-
-/** התאמה לעמוד A4 — גם בתצוגה מקדימה וגם בהדפסה */
-function fitSheetToA4Page() {
-  const sheet = $('.sheet');
-  if (!sheet || isPhoneLayoutViewport()) {
-    clearPrintFit();
-    return;
-  }
-
-  clearPrintFit();
-  sheet.classList.add('is-print-scaling');
-  sheet.style.height = 'auto';
-  sheet.style.minHeight = '0';
-  sheet.style.width = '210mm';
-
-  const contentH = sheet.scrollHeight;
-  const pageHpx = (297 * 96) / 25.4;
-  let scale = Math.min(1, (pageHpx * 0.97) / contentH);
-  if (scale < 0.7) scale = 0.7;
-
-  if (scale < 0.995) {
-    sheet.style.transformOrigin = 'top center';
-    sheet.style.transform = `scale(${scale})`;
-  }
-  // מסגרת A4 קבועה בתצוגה המקדימה
-  sheet.style.minHeight = '297mm';
-}
-
-function fitSheetForPrint() {
-  fitSheetToA4Page();
-}
-
 function persistMessages(messages) {
   const overrides = getWeekOverrides(state.model.friday) || {};
   overrides.importantMessages = messages;
@@ -738,15 +687,6 @@ document.addEventListener('DOMContentLoaded', () => {
   updateEditButtons();
   loadWeek();
 
-  window.addEventListener('beforeprint', fitSheetForPrint);
-  window.addEventListener('afterprint', () => {
-    // אחרי הדפסה — מחזירים תצוגה מקדימה מותאמת
-    fitSheetToA4Page();
-  });
-  window.addEventListener('resize', () => {
-    clearTimeout(fitSheetToA4Page._t);
-    fitSheetToA4Page._t = setTimeout(fitSheetToA4Page, 150);
-  });
 });
 
 // silence unused in lint

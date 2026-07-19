@@ -109,37 +109,40 @@ body {
   margin: 0.6rem auto 1.5rem;
 }
 
-/* תצוגה מקדימה = מראה הדפסה (A4) */
+/*
+ * דסקטופ: תצוגה מקדימה = בדיוק עמוד A4 להדפסה
+ * (בלי transform — הוא שובר הדפסה לעמוד שני)
+ */
 .sheet {
   width: var(--a4-w);
   max-width: 100%;
-  height: auto;
-  min-height: var(--a4-h);
+  height: var(--a4-h);
+  max-height: var(--a4-h);
   margin: 0 auto;
   background: var(--paper);
   border: 1px solid #bbb;
   box-shadow: 0 6px 22px rgba(0, 0, 0, 0.1);
-  padding: 4.5mm 5.5mm;
+  padding: 4mm 5mm;
   display: flex;
   flex-direction: column;
-  gap: 2mm;
-  overflow: visible;
-  font-size: 11.5pt;
-  transform-origin: top center;
+  gap: 1.6mm;
+  overflow: hidden;
+  font-size: 10.5pt;
 }
 
 .mast-name {
   font-family: var(--font-display);
   font-weight: 700;
-  font-size: 13.5pt;
+  font-size: 12.5pt;
   line-height: 1.15;
   text-align: center;
+  flex: 0 0 auto;
 }
 
 .zman-strip {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 2.5mm;
+  gap: 2mm;
   flex: 0 0 auto;
 }
 
@@ -147,21 +150,21 @@ body {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 3mm;
-  padding: 1.8mm 2.8mm;
+  gap: 2mm;
+  padding: 1.4mm 2.4mm;
   border: 2px solid #333;
   background: var(--soft);
 }
 
 .zman-label {
   font-weight: 700;
-  font-size: 11pt;
+  font-size: 10pt;
 }
 
 .zman-time {
   font-family: var(--font-display);
   font-weight: 900;
-  font-size: 22pt;
+  font-size: 20pt;
   line-height: 1;
   direction: ltr;
   font-variant-numeric: tabular-nums;
@@ -215,19 +218,19 @@ body {
 }
 
 .msg-body {
-  font-size: 11.5pt;
+  font-size: 10.5pt;
   font-weight: 700;
   white-space: pre-wrap;
-  line-height: 1.3;
+  line-height: 1.25;
 }
 
 .board {
   border: 2px solid #333;
-  padding: 2mm;
+  padding: 1.6mm;
   display: flex;
   flex-direction: column;
-  gap: 1.5mm;
-  flex: 0 0 auto;
+  gap: 1.2mm;
+  flex: 1 1 auto;
   min-height: 0;
 }
 
@@ -253,13 +256,13 @@ body {
 }
 
 .band-main {
-  font-size: 11.5pt;
+  font-size: 10.5pt;
   text-align: center;
   background: var(--band-main);
 }
 
 .band-sub {
-  font-size: 10.5pt;
+  font-size: 9.5pt;
   background: var(--band-sub);
 }
 
@@ -283,19 +286,19 @@ body {
 
 .row-label {
   font-weight: 600;
-  font-size: 11.5pt;
-  line-height: 1.2;
+  font-size: 10.5pt;
+  line-height: 1.15;
 }
 
 .row-time {
   font-family: var(--font-display);
   font-weight: 800;
-  font-size: 13.5pt;
+  font-size: 12.5pt;
   line-height: 1;
   direction: ltr;
   text-align: left;
   font-variant-numeric: tabular-nums;
-  min-width: 3.4rem;
+  min-width: 3.2rem;
 }
 
 .row.highlight-line {
@@ -309,7 +312,7 @@ body {
 .row.sub-note {
   grid-template-columns: 1fr;
   color: var(--muted);
-  font-size: 12pt;
+  font-size: 9.5pt;
   border-bottom: 0;
   padding-top: 0;
 }
@@ -335,9 +338,9 @@ body.edit-mode .editable:focus {
 }
 
 .lesson-block h4 {
-  margin: 0 0 0.5mm;
+  margin: 0 0 0.4mm;
   font-family: var(--font-display);
-  font-size: 13pt;
+  font-size: 11pt;
   font-weight: 700;
   border-bottom: 1px solid #bbb;
 }
@@ -377,7 +380,7 @@ body.edit-mode .editable:focus {
 
 .shabbat-shalom {
   font-family: var(--font-display);
-  font-size: 13pt;
+  font-size: 12pt;
   font-weight: 800;
 }
 
@@ -388,17 +391,13 @@ body.edit-mode .editable:focus {
 
 .slogan {
   font-family: var(--font-display);
-  font-size: 10pt;
+  font-size: 9pt;
   font-weight: 700;
-  line-height: 1.2;
+  line-height: 1.15;
 }
 
 .source-note {
-  margin: 0;
-  text-align: center;
-  font-size: 8.5pt;
-  color: #888;
-  flex: 0 0 auto;
+  display: none;
 }
 
 .side-panel {
@@ -574,11 +573,21 @@ body.edit-mode .editable:focus {
   .sheet {
     width: 100%;
     height: auto;
+    max-height: none;
     border: 0;
     box-shadow: none;
     padding: 3.5vw 4vw 5vw;
     gap: 3.5vw;
     font-size: 1.05rem;
+    overflow: visible;
+  }
+
+  .source-note {
+    display: block;
+    margin: 0.4rem 0 0;
+    text-align: center;
+    font-size: 0.75rem;
+    color: #888;
   }
 
   .mast-name {
@@ -746,9 +755,10 @@ body.capture-phone .board {
 @media print {
   html,
   body {
-    width: 210mm;
-    height: 297mm;
+    width: 210mm !important;
+    height: 297mm !important;
     margin: 0 !important;
+    padding: 0 !important;
     background: #fff !important;
   }
 
@@ -763,23 +773,31 @@ body.capture-phone .board {
     display: none !important;
   }
 
-  #app {
-    display: block !important;
-  }
-
+  #app,
   .page-wrap {
+    display: block !important;
     margin: 0 !important;
+    padding: 0 !important;
     width: 210mm !important;
     max-width: none !important;
   }
 
-  /* תואם לתצוגה המקדימה במסך */
+  /* אותו עמוד A4 כמו בתצוגה המקדימה — בלי scale */
   .sheet {
     width: 210mm !important;
-    margin: 0 auto !important;
+    height: 297mm !important;
+    max-height: 297mm !important;
+    margin: 0 !important;
+    padding: 4mm 5mm !important;
     border: 0 !important;
     box-shadow: none !important;
     background: #fff !important;
+    overflow: hidden !important;
+    gap: 1.6mm !important;
+    font-size: 10.5pt !important;
+    page-break-after: avoid !important;
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
   }
 
   .band-main,
@@ -806,9 +824,5 @@ body.capture-phone .board {
 
   .important-message {
     background: #fff !important;
-  }
-
-  .source-note {
-    display: none !important;
   }
 }
