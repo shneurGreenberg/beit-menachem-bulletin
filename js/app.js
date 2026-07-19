@@ -22,6 +22,21 @@ const state = {
 const $ = (sel, root = document) => root.querySelector(sel);
 const $$ = (sel, root = document) => [...root.querySelectorAll(sel)];
 
+function setText(sel, text) {
+  const el = $(sel);
+  if (el) el.textContent = text;
+}
+
+function setHtml(sel, html) {
+  const el = $(sel);
+  if (el) el.innerHTML = html;
+}
+
+function setHidden(sel, hidden) {
+  const el = $(sel);
+  if (el) el.hidden = hidden;
+}
+
 function timeCell(key, value, editable) {
   const overridden = state.model?._overrides?.times?.[key] != null;
   return `
@@ -144,23 +159,26 @@ function renderMessages(model, editable) {
 }
 
 function renderBulletin(model) {
+  if (!model?.times) return;
   const editable = state.editMode && !state.viewingHistoryId;
   const t = model.times;
+  const labels = model.labels || {};
 
-  $('#synagogue-name').textContent = CONFIG.synagogue.nameDisplay;
-  $('#week-title').textContent = currentTitle(model);
-  $('#next-week-title').textContent = nextWeekTitle(model);
-  $('#slogan').textContent = CONFIG.synagogue.slogan;
+  setText('#synagogue-name', CONFIG.synagogue.nameDisplay);
+  setText('#week-title', currentTitle(model));
+  setText('#next-week-title', nextWeekTitle(model));
+  setText('#slogan', CONFIG.synagogue.slogan);
+  setText('#hero-candles-time', t.candleLighting);
+  setText('#hero-end-time', t.shabbatEnd);
 
-  $('#hero-candles-time').textContent = t.candleLighting;
-  $('#hero-end-time').textContent = t.shabbatEnd;
-
-  const fridayBlock = `
+  setHtml(
+    '#friday-schedule',
+    `
     ${timeCell('fridayMincha', t.fridayMincha, editable)}
     ${timeCell('issurMelacha', t.issurMelacha, editable)}
     ${timeCell('sunsetFriday', t.sunsetFriday, editable)}
-  `;
-  $('#friday-schedule').innerHTML = fridayBlock;
+  `,
+  );
   bindRowLabels('#friday-schedule', {
     fridayMincha: 'מנחה',
     issurMelacha: 'איסור מלאכה',
@@ -169,36 +187,40 @@ function renderBulletin(model) {
 
   renderMessages(model, editable);
 
-  const morning = `
+  setHtml(
+    '#morning-schedule',
+    `
     ${timeCell('shabbatChassidut', t.shabbatChassidut, editable)}
     ${timeCell('shabbatShacharit', t.shabbatShacharit, editable)}
     <div class="row highlight-line">
       <span class="row-label ${editable ? 'editable' : ''}" id="farbrengen-label"
-            ${editable ? 'contenteditable="true"' : ''}>${escapeHtml(model.labels.farbrengen)}</span>
+            ${editable ? 'contenteditable="true"' : ''}>${escapeHtml(labels.farbrengen || '')}</span>
     </div>
-  `;
-  $('#morning-schedule').innerHTML = morning;
+  `,
+  );
   bindRowLabels('#morning-schedule', {
     shabbatChassidut: 'שיעור חסידות',
     shabbatShacharit: 'שחרית',
   });
 
-  const afternoon = `
+  setHtml(
+    '#afternoon-schedule',
+    `
     ${timeCell('tanyaWomen', t.tanyaWomen, editable)}
     ${timeCell('childrenStory', t.childrenStory, editable)}
     ${timeCell('shabbatMincha', t.shabbatMincha, editable)}
     <div class="row sub-note">
       <span class="row-label ${editable ? 'editable' : ''}" id="pirkei-label"
-            ${editable ? 'contenteditable="true"' : ''}>${escapeHtml(model.labels.pirkeiAvot)}</span>
+            ${editable ? 'contenteditable="true"' : ''}>${escapeHtml(labels.pirkeiAvot || '')}</span>
     </div>
     ${timeCell('sunsetShabbat', t.sunsetShabbat, editable)}
     ${timeCell('shabbatArvit', t.shabbatArvit, editable)}
     <div class="row sub-note">
       <span class="row-label ${editable ? 'editable' : ''}" id="marot-label"
-            ${editable ? 'contenteditable="true"' : ''}>${escapeHtml(model.labels.marotKodesh)}</span>
+            ${editable ? 'contenteditable="true"' : ''}>${escapeHtml(labels.marotKodesh || '')}</span>
     </div>
-  `;
-  $('#afternoon-schedule').innerHTML = afternoon;
+  `,
+  );
   bindRowLabels('#afternoon-schedule', {
     tanyaWomen: 'שיעור תניא לנשים',
     childrenStory: 'סיפור לילדים',
@@ -207,13 +229,15 @@ function renderBulletin(model) {
     shabbatArvit: 'ערבית',
   });
 
-  const week = `
+  setHtml(
+    '#weekday-schedule',
+    `
     ${timeCell('weekdayChassidut', t.weekdayChassidut, editable)}
     ${timeCell('weekdayShacharit', t.weekdayShacharit, editable)}
     ${timeCell('weekdayMincha', t.weekdayMincha, editable)}
     ${timeCell('weekdayArvit', t.weekdayArvit, editable)}
-  `;
-  $('#weekday-schedule').innerHTML = week;
+  `,
+  );
   bindRowLabels('#weekday-schedule', {
     weekdayChassidut: 'שיעור חסידות',
     weekdayShacharit: 'שחרית',
@@ -221,16 +245,21 @@ function renderBulletin(model) {
     weekdayArvit: 'ערבית',
   });
 
-  $('#fixed-lessons').innerHTML = renderFixedLessons(model, editable);
-  $('#special-days-wrap').innerHTML = renderSpecialDays(model);
+  setHtml('#fixed-lessons', renderFixedLessons(model, editable));
+  setHtml('#special-days-wrap', renderSpecialDays(model));
 
-  $('#source-note').textContent =
+  setText(
+    '#source-note',
     model.source === 'hebcal-beit-shemesh'
       ? 'זמנים מחושבים לפי בית שמש (Hebcal) · ניתן לעדכן ידנית'
-      : model.source || '';
+      : model.source || '',
+  );
 
   document.body.classList.toggle('edit-mode', editable);
-  document.body.classList.toggle('has-overrides', Boolean(model._overrides && Object.keys(model._overrides.times || {}).length));
+  document.body.classList.toggle(
+    'has-overrides',
+    Boolean(model._overrides && Object.keys(model._overrides.times || {}).length),
+  );
 }
 
 function bindRowLabels(rootSel, map) {
@@ -296,23 +325,30 @@ function collectEditsFromDom() {
 }
 
 async function loadWeek() {
-  $('#loading').hidden = false;
-  $('#app').hidden = true;
+  setHidden('#loading', false);
+  setHidden('#app', true);
   try {
     const auto = await buildWeekModel(new Date());
     state.autoModel = auto;
     const overrides = getWeekOverrides(auto.friday);
-    state.model = applyOverrides(auto, overrides);
-    saveHistoryEntry(state.model);
+    state.model = applyOverrides(auto, {
+      ...overrides,
+      importantMessages: normalizeMessages(overrides),
+    });
+    // מציגים את הדף לפני הרינדור כדי שכל האלמנטים יהיו זמינים
+    setHidden('#app', false);
+    setHidden('#loading', true);
     renderBulletin(state.model);
+    saveHistoryEntry(state.model);
     populateHistoryList();
     populateTemplates();
-    $('#app').hidden = false;
   } catch (err) {
     console.error(err);
-    $('#loading').innerHTML = `<p class="error">לא ניתן לטעון זמנים. בדקו חיבור לאינטרנט ורעננו.</p><pre>${escapeHtml(err.message)}</pre>`;
-  } finally {
-    $('#loading').hidden = true;
+    setHtml(
+      '#loading',
+      `<p class="error">לא ניתן לטעון זמנים. בדקו חיבור לאינטרנט ורעננו.</p><pre>${escapeHtml(err.message)}</pre>`,
+    );
+    setHidden('#loading', false);
   }
 }
 
@@ -349,6 +385,7 @@ function populateHistoryList() {
 
 function showToast(msg) {
   const el = $('#toast');
+  if (!el) return;
   el.textContent = msg;
   el.hidden = false;
   clearTimeout(showToast._t);
@@ -361,7 +398,7 @@ async function tryUnlockEdit() {
   if (isEditUnlocked()) {
     state.editMode = true;
     renderBulletin(state.model);
-    $('#edit-panel').hidden = false;
+    setHidden('#edit-panel', false);
     updateEditButtons();
     return;
   }
@@ -375,7 +412,7 @@ async function tryUnlockEdit() {
   }
   setEditUnlocked(true);
   state.editMode = true;
-  $('#edit-panel').hidden = false;
+  setHidden('#edit-panel', false);
   renderBulletin(state.model);
   updateEditButtons();
   showToast('מצב עריכה פעיל');
@@ -384,15 +421,17 @@ async function tryUnlockEdit() {
 function lockEdit() {
   state.editMode = false;
   setEditUnlocked(false);
-  $('#edit-panel').hidden = true;
+  setHidden('#edit-panel', true);
   renderBulletin(state.model);
   updateEditButtons();
 }
 
 function updateEditButtons() {
   const on = state.editMode;
-  $('#btn-edit').textContent = on ? 'סיום עריכה' : 'מצב עריכה';
-  $('#btn-edit').setAttribute('aria-pressed', on ? 'true' : 'false');
+  const btn = $('#btn-edit');
+  if (!btn) return;
+  btn.textContent = on ? 'סיום עריכה' : 'מצב עריכה';
+  btn.setAttribute('aria-pressed', on ? 'true' : 'false');
 }
 
 function downloadBlob(blob, filename) {
@@ -507,9 +546,9 @@ function bindUi() {
 
   $('#btn-whatsapp').addEventListener('click', shareWhatsApp);
 
-  $('#btn-add-message').addEventListener('click', () => addMessage(''));
+  $('#btn-add-message')?.addEventListener('click', () => addMessage(''));
 
-  $('#important-messages').addEventListener('click', (e) => {
+  $('#important-messages')?.addEventListener('click', (e) => {
     const btn = e.target.closest('[data-remove-msg]');
     if (!btn || !state.editMode) return;
     const idx = Number(btn.dataset.removeMsg);
@@ -518,13 +557,14 @@ function bindUi() {
     showToast('הודעה נמחקה');
   });
 
-  $('#btn-history').addEventListener('click', () => {
+  $('#btn-history')?.addEventListener('click', () => {
     const panel = $('#history-panel');
+    if (!panel) return;
     panel.hidden = !panel.hidden;
     if (!panel.hidden) populateHistoryList();
   });
 
-  $('#history-list').addEventListener('click', (e) => {
+  $('#history-list')?.addEventListener('click', (e) => {
     const btn = e.target.closest('.history-item');
     if (!btn) return;
     const entry = getHistoryEntry(btn.dataset.id);
@@ -532,21 +572,24 @@ function bindUi() {
     state.viewingHistoryId = entry.id;
     state.model = entry.snapshot;
     state.editMode = false;
-    $('#edit-panel').hidden = true;
+    setHidden('#edit-panel', true);
     updateEditButtons();
     renderBulletin(state.model);
     showToast('תצוגת היסטוריה');
   });
 
-  $('#btn-back-current').addEventListener('click', () => {
+  $('#btn-back-current')?.addEventListener('click', () => {
     state.viewingHistoryId = null;
     const overrides = getWeekOverrides(state.autoModel.friday);
-    state.model = applyOverrides(state.autoModel, overrides);
+    state.model = applyOverrides(state.autoModel, {
+      ...overrides,
+      importantMessages: normalizeMessages(overrides),
+    });
     renderBulletin(state.model);
     showToast('חזרה לשבוע הנוכחי');
   });
 
-  $('#template-select').addEventListener('change', (e) => {
+  $('#template-select')?.addEventListener('change', (e) => {
     const id = e.target.value;
     if (!id) return;
     const tpl = getTemplate(id);
@@ -556,50 +599,13 @@ function bindUi() {
       e.target.value = '';
       return;
     }
-    // תבנית תמיד מתווספת כהודעה חדשה — לא מחליפה קיימות
     addMessage(tpl.body || '');
     e.target.value = '';
   });
 
-  // save message on blur in edit mode
-  document.addEventListener('focusout', (e) => {
-    if (!state.editMode) return;
-    if (e.target.matches('.editable, [contenteditable="true"]')) {
-      // debounce light save of message text visually only; explicit save via button
-    }
+  $('#btn-close-history')?.addEventListener('click', () => {
+    setHidden('#history-panel', true);
   });
-
-  $('#btn-close-history').addEventListener('click', () => {
-    $('#history-panel').hidden = true;
-  });
-}
-
-function clearPrintScale() {
-  const sheet = $('.sheet');
-  if (!sheet) return;
-  sheet.style.transform = '';
-  sheet.style.width = '';
-  sheet.classList.remove('is-print-fit');
-}
-
-/** מתאים את העלון לגובה עמוד A4 בודד (הדפסה / צילום) */
-function fitSheetToA4() {
-  const sheet = $('.sheet');
-  if (!sheet) return 1;
-  clearPrintScale();
-  // שטח מודפס בקירוב: A4 עם שוליים 8mm
-  const maxW = ((210 - 16) * 96) / 25.4;
-  const maxH = ((297 - 16) * 96) / 25.4;
-  const rect = sheet.getBoundingClientRect();
-  const scale = Math.min(1, maxW / rect.width, maxH / rect.height);
-  if (scale < 0.999) {
-    sheet.classList.add('is-print-fit');
-    sheet.style.transformOrigin = 'top center';
-    sheet.style.transform = `scale(${scale})`;
-    // שומר רוחב ויזואלי יציב אחרי scale
-    sheet.style.width = `${rect.width}px`;
-  }
-  return scale;
 }
 
 async function captureSheetImage() {
@@ -607,13 +613,22 @@ async function captureSheetImage() {
   if (!sheet) throw new Error('לא נמצא עלון לצילום');
   const { toBlob } = await import('https://cdn.jsdelivr.net/npm/html-to-image@1.11.13/+esm');
   document.body.classList.add('capture-print');
-  fitSheetToA4();
   try {
+    await document.fonts?.ready;
     await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
     const blob = await toBlob(sheet, {
+      width: Math.round((210 / 25.4) * 96),
+      height: Math.round((297 / 25.4) * 96),
       pixelRatio: 2,
       backgroundColor: '#ffffff',
       cacheBust: true,
+      style: {
+        width: '210mm',
+        height: '297mm',
+        minHeight: '297mm',
+        transform: 'none',
+        margin: '0',
+      },
       filter: (node) => {
         if (!(node instanceof Element)) return true;
         return !node.classList?.contains('source-note');
@@ -623,7 +638,6 @@ async function captureSheetImage() {
     return blob;
   } finally {
     document.body.classList.remove('capture-print');
-    clearPrintScale();
   }
 }
 
@@ -631,17 +645,10 @@ document.addEventListener('DOMContentLoaded', () => {
   bindUi();
   if (isEditUnlocked()) {
     state.editMode = true;
-    $('#edit-panel').hidden = false;
+    setHidden('#edit-panel', false);
   }
   updateEditButtons();
   loadWeek();
-
-  window.addEventListener('beforeprint', () => {
-    fitSheetToA4();
-  });
-  window.addEventListener('afterprint', () => {
-    clearPrintScale();
-  });
 });
 
 // silence unused in lint
