@@ -1,0 +1,398 @@
+import { CONFIG } from './config.js';
+
+const HEBCAL_SHABBAT = 'https://www.hebcal.com/shabbat';
+const HEBCAL_ZMANIM = 'https://www.hebcal.com/zmanim';
+const HEBCAL_CAL = 'https://www.hebcal.com/hebcal';
+
+function pad(n) {
+  return String(n).padStart(2, '0');
+}
+
+export function formatTime(date) {
+  if (!(date instanceof Date) || Number.isNaN(date.getTime())) return '--:--';
+  return `${pad(date.getHours())}:${pad(date.getMinutes())}`;
+}
+
+export function parseTimeOnDate(baseDate, hhmm) {
+  const [h, m] = hhmm.split(':').map(Number);
+  const d = new Date(baseDate);
+  d.setHours(h, m, 0, 0);
+  return d;
+}
+
+export function addMinutes(date, minutes) {
+  return new Date(date.getTime() + minutes * 60_000);
+}
+
+/** עיגול לשעה "נורמלית" לפי הסלוטים בהגדרות */
+export function roundToNiceSlot(date, slots = CONFIG.rounding.slots) {
+  const total = date.getHours() * 60 + date.getMinutes();
+  let best = slots[0];
+  let bestDiff = Infinity;
+  for (let hour = date.getHours() - 1; hour <= date.getHours() + 1; hour++) {
+    for (const slot of slots) {
+      const candidate = hour * 60 + slot;
+      const diff = Math.abs(candidate - total);
+      if (diff < bestDiff) {
+        bestDiff = diff;
+        best = candidate;
+      }
+    }
+  }
+  const out = new Date(date);
+  out.setHours(Math.floor(best / 60), best % 60, 0, 0);
+  return out;
+}
+
+function isoDate(d) {
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+}
+
+/** יום שישי של שבת הקרובה/הנוכחית */
+export function getCurrentFriday(ref = new Date()) {
+  const d = new Date(ref);
+  d.setHours(12, 0, 0, 0);
+  const day = d.getDay(); // 0=ראשון ... 5=שישי 6=שבת
+  if (day === 6) {
+    d.setDate(d.getDate() - 1);
+  } else if (day !== 5) {
+    const delta = (5 - day + 7) % 7;
+    d.setDate(d.getDate() + delta);
+  }
+  return d;
+}
+
+export function getSaturday(friday) {
+  return addMinutes(new Date(friday.getFullYear(), friday.getMonth(), friday.getDate(), 12), 24 * 60);
+}
+
+async function fetchJson(url) {
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`שגיאת רשת ${res.status}`);
+  return res.json();
+}
+
+async function fetchZmanim(date) {
+  const { geonameid } = CONFIG.location;
+  const url = `${HEBCAL_ZMANIM}?cfg=json&geonameid=${geonameid}&date=${isoDate(date)}`;
+  return fetchJson(url);
+}
+
+async function fetchShabbat(friday) {
+  const { geonameid, candleLightingMinutes } = CONFIG.location;
+  const url =
+    `${HEBCAL_SHABBAT}?cfg=json&geonameid=${geonameid}` +
+    `&M=on&b=${candleLightingMinutes}&lg=he` +
+    `&gy=${friday.getFullYear()}&gm=${friday.getMonth() + 1}&gd=${friday.getDate()}`;
+  return fetchJson(url);
+}
+
+async function fetchNextParasha(afterSaturday) {
+  const start = new Date(afterSaturday);
+  start.setDate(start.getDate() + 1);
+  const end = new Date(start);
+  end.setDate(end.getDate() + 10);
+  const { geonameid, candleLightingMinutes } = CONFIG.location;
+  const url =
+    `${HEBCAL_CAL}?v=1&cfg=json&maj=on&min=on&mod=on&nx=on&ss=on&s=on` +
+    `&c=on&b=${candleLightingMinutes}&M=on&lg=he&i=on` +
+    `&geonameid=${geonameid}` +
+    `&start=${isoDate(start)}&end=${isoDate(end)}`;
+  const data = await fetchJson(url);
+  const parasha = (data.items || []).find((i) => i.category === 'parashat');
+  const shabbatHoliday = (data.items || []).find(
+    (i) => i.category === 'holiday' && i.subcat === 'shabbat',
+  );
+  const candles = (data.items || []).find((i) => i.category === 'candles');
+  return {
+    parashaName: cleanHebrewTitle(parasha?.hebrew || parasha?.title_orig || ''),
+    shabbatTitle: cleanHebrewTitle(shabbatHoliday?.hebrew || ''),
+    hdate: parasha?.hdate || '',
+    date: parasha?.date || '',
+    candlesDate: candles?.date || null,
+  };
+}
+
+function cleanHebrewTitle(s) {
+  return (s || '')
+    .replace(/^פרשת\s+/, '')
+    .replace(/^שבת\s+/, '')
+    .trim();
+}
+
+function itemTime(item) {
+  if (!item?.date) return null;
+  return new Date(item.date);
+}
+
+function detectSpecialDays(items, friday, saturday) {
+  const specials = [];
+  for (const item of items || []) {
+    if (item.category !== 'holiday' && item.category !== 'zmanim') continue;
+    const d = item.date ? new Date(item.date) : null;
+    const inWeek =
+      d &&
+      d >= new Date(friday.getFullYear(), friday.getMonth(), friday.getDate()) &&
+      d <= addMinutes(saturday, 7 * 24 * 60);
+    if (!inWeek && item.category === 'holiday') {
+      // keep major holidays in upcoming week range from shabbat API
+    }
+    if (item.subcat === 'major' || item.title_orig?.includes("Tish'a") || item.hebrew?.includes('תשעה')) {
+      specials.push({
+        title: item.hebrew || item.title_orig,
+        titleOrig: item.title_orig,
+        date: item.date,
+        hdate: item.hdate,
+        memo: item.memo || '',
+      });
+    }
+    if (item.title_orig === 'Erev Tish\'a B\'Av' || item.hebrew === 'ערב תשעה באב') {
+      specials.push({
+        title: item.hebrew || 'ערב תשעה באב',
+        titleOrig: item.title_orig,
+        date: item.date,
+        hdate: item.hdate,
+        kind: 'erev-tisha-bav',
+      });
+    }
+  }
+  // dedupe by title+date
+  const seen = new Set();
+  return specials.filter((s) => {
+    const key = `${s.title}|${s.date}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
+async function fetchHebrewDateLabel(gregorianIso) {
+  try {
+    const [y, m, d] = gregorianIso.split('-').map(Number);
+    const url = `https://www.hebcal.com/converter?cfg=json&gy=${y}&gm=${m}&gd=${d}&g2h=1`;
+    const data = await fetchJson(url);
+    return data.hebrew || data.hd ? `${data.hebrew || ''}`.trim() : formatHebrewDateLabel(data.hm ? `${data.hd} ${data.hm} ${data.hy}` : '');
+  } catch {
+    return '';
+  }
+}
+
+function assembleModel({
+  friday,
+  saturday,
+  shabbatData,
+  friZmanim,
+  satZmanim,
+  weekdayZmanim,
+  nextParasha,
+  specialExtra = [],
+  source = 'hebcal-beit-shemesh',
+  hebrewDateLabel = '',
+  nextHebrewDateLabel = '',
+}) {
+  const items = shabbatData.items || [];
+  const candles = itemTime(items.find((i) => i.category === 'candles'));
+  const havdalah = itemTime(items.find((i) => i.category === 'havdalah'));
+  const parashaItem = items.find((i) => i.category === 'parashat');
+  const shabbatHoliday = items.find((i) => i.category === 'holiday' && i.subcat === 'shabbat');
+
+  const sunsetFri = new Date(friZmanim.times.sunset);
+  const sunsetSat = new Date(satZmanim.times.sunset);
+  const sunsetWeek = new Date(weekdayZmanim.times.sunset);
+  const tzeitWeek = new Date(
+    weekdayZmanim.times.tzaisBaalHatanya ||
+      weekdayZmanim.times.dusk ||
+      weekdayZmanim.times.tzeit7083deg,
+  );
+
+  const o = CONFIG.offsets;
+  const fridayMincha = addMinutes(sunsetFri, -o.fridayMinchaBeforeSunset);
+  const issurMelacha = addMinutes(sunsetFri, -o.issurMelachaBeforeSunset);
+  const shabbatMincha = addMinutes(sunsetSat, -o.shabbatMinchaBeforeSunset);
+  const shabbatArvit = addMinutes(
+    havdalah || addMinutes(sunsetSat, CONFIG.location.havdalahMinutes),
+    -o.shabbatArvitBeforeHavdalah,
+  );
+
+  let weekdayMincha = addMinutes(sunsetWeek, -o.weekdayMinchaBeforeSunset);
+  let weekdayArvit = tzeitWeek;
+  if (CONFIG.rounding.weekdayMincha) weekdayMincha = roundToNiceSlot(weekdayMincha);
+  if (CONFIG.rounding.weekdayArvit) weekdayArvit = roundToNiceSlot(weekdayArvit);
+
+  const tanya = addMinutes(shabbatMincha, -o.tanyaWomenBeforeMincha);
+  const children = addMinutes(shabbatMincha, -o.childrenStoryBeforeMincha);
+  const specialDays = [
+    ...detectSpecialDays(items, friday, saturday),
+    ...specialExtra,
+  ];
+  const seen = new Set();
+  const uniqueSpecials = specialDays.filter((s) => {
+    const key = `${s.title}|${s.date}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+
+  const hdate = parashaItem?.hdate || shabbatHoliday?.hdate || '';
+
+  return {
+    generatedAt: new Date().toISOString(),
+    source,
+    friday: isoDate(friday),
+    saturday: isoDate(saturday),
+    current: {
+      parasha: cleanHebrewTitle(parashaItem?.hebrew || parashaItem?.title_orig || 'השבוע'),
+      shabbatTitle: cleanHebrewTitle(shabbatHoliday?.hebrew || ''),
+      hdate,
+      hebrewDateLabel: hebrewDateLabel || formatHebrewDateLabel(hdate),
+    },
+    nextWeek: {
+      parasha: nextParasha.parashaName || '',
+      shabbatTitle: nextParasha.shabbatTitle || '',
+      hdate: nextParasha.hdate || '',
+      hebrewDateLabel: nextHebrewDateLabel || formatHebrewDateLabel(nextParasha.hdate || ''),
+    },
+    times: {
+      candleLighting: formatTime(
+        candles || addMinutes(sunsetFri, -CONFIG.location.candleLightingMinutes),
+      ),
+      shabbatEnd: formatTime(havdalah),
+      fridayMincha: formatTime(fridayMincha),
+      issurMelacha: formatTime(issurMelacha),
+      sunsetFriday: formatTime(sunsetFri),
+      sunsetShabbat: formatTime(sunsetSat),
+      shabbatChassidut: o.shabbatChassidut,
+      shabbatShacharit: o.shabbatShacharit,
+      tanyaWomen: formatTime(tanya),
+      childrenStory: formatTime(children),
+      shabbatMincha: formatTime(shabbatMincha),
+      shabbatArvit: formatTime(shabbatArvit),
+      weekdayChassidut: o.weekdayChassidut,
+      weekdayShacharit: o.weekdayShacharit,
+      weekdayMincha: formatTime(weekdayMincha),
+      weekdayArvit: formatTime(weekdayArvit),
+    },
+    labels: {
+      farbrengen: 'התוועדות לאחר התפילה',
+      pirkeiAvot: 'פרקי אבות',
+      marotKodesh: 'מראות קודש',
+    },
+    specialDays: uniqueSpecials,
+    importantMessage: '',
+    messageTemplateId: '',
+    fixedLessons: structuredClone(CONFIG.fixedLessons),
+  };
+}
+
+/**
+ * בונה מודל מלא של עלון השבוע מנתוני Hebcal (בית שמש).
+ * כשתגיע טבלת הזמנים המקומית — נחליף את מקור השקיעה כאן.
+ */
+export async function buildWeekModel(refDate = new Date()) {
+  const friday = getCurrentFriday(refDate);
+  const saturday = getSaturday(friday);
+  const sunday = addMinutes(saturday, 24 * 60);
+
+  try {
+    const [shabbatData, friZmanim, satZmanim, weekdayZmanim, nextParasha, hebrewDateLabel] =
+      await Promise.all([
+        fetchShabbat(friday),
+        fetchZmanim(friday),
+        fetchZmanim(saturday),
+        fetchZmanim(sunday),
+        fetchNextParasha(saturday),
+        fetchHebrewDateLabel(isoDate(saturday)),
+      ]);
+
+    let specialExtra = [];
+    try {
+      const weekEnd = addMinutes(sunday, 6 * 24 * 60);
+      const calUrl =
+        `${HEBCAL_CAL}?v=1&cfg=json&maj=on&min=on&mod=on&nx=on&lg=he&i=on` +
+        `&start=${isoDate(sunday)}&end=${isoDate(weekEnd)}`;
+      const cal = await fetchJson(calUrl);
+      specialExtra = detectSpecialDays(cal.items, sunday, weekEnd);
+    } catch {
+      /* optional */
+    }
+
+    let nextHebrewDateLabel = '';
+    if (nextParasha.date) {
+      nextHebrewDateLabel = await fetchHebrewDateLabel(String(nextParasha.date).slice(0, 10));
+    }
+
+    return assembleModel({
+      friday,
+      saturday,
+      shabbatData,
+      friZmanim,
+      satZmanim,
+      weekdayZmanim,
+      nextParasha,
+      specialExtra,
+      hebrewDateLabel,
+      nextHebrewDateLabel,
+    });
+  } catch (err) {
+    console.warn('Hebcal failed, trying local cache', err);
+    const cached = await fetch('./data/week.json').then((r) => r.json());
+    if (cached.times && cached.current) return cached;
+    const fri = cached.friday ? new Date(`${cached.friday}T12:00:00`) : friday;
+    const sat = cached.saturday ? new Date(`${cached.saturday}T12:00:00`) : saturday;
+    return assembleModel({
+      friday: fri,
+      saturday: sat,
+      shabbatData: cached.shabbat || { items: [] },
+      friZmanim: cached.zmanimFriday,
+      satZmanim: cached.zmanimSaturday,
+      weekdayZmanim: cached.zmanimSaturday,
+      nextParasha: { parashaName: '', shabbatTitle: '', hdate: '' },
+      source: cached.source || 'cache',
+    });
+  }
+}
+
+function formatHebrewDateLabel(hdate) {
+  if (!hdate) return '';
+  // "4 Av 5786" fallback באנגלית אם אין המרה
+  const months = {
+    Nisan: 'ניסן',
+    Iyyar: 'אייר',
+    Sivan: 'סיון',
+    Tamuz: 'תמוז',
+    Av: 'אב',
+    Elul: 'אלול',
+    Tishrei: 'תשרי',
+    Cheshvan: 'חשון',
+    Kislev: 'כסלו',
+    Tevet: 'טבת',
+    Shvat: 'שבט',
+    Adar: 'אדר',
+    "Adar I": 'אדר א׳',
+    "Adar II": 'אדר ב׳',
+  };
+  const m = String(hdate).match(/^(\d+)\s+(.+?)\s+(\d+)$/);
+  if (!m) return hdate;
+  const day = m[1];
+  const month = months[m[2]] || m[2];
+  return `${day} ${month} ${m[3]}`;
+}
+
+export function applyOverrides(model, overrides) {
+  if (!overrides || !Object.keys(overrides).length) return model;
+  const next = structuredClone(model);
+  next.times = { ...next.times, ...overrides.times };
+  if (overrides.importantMessage !== undefined) next.importantMessage = overrides.importantMessage;
+  if (overrides.messageTemplateId !== undefined) next.messageTemplateId = overrides.messageTemplateId;
+  if (overrides.current) next.current = { ...next.current, ...overrides.current };
+  if (overrides.nextWeek) next.nextWeek = { ...next.nextWeek, ...overrides.nextWeek };
+  if (overrides.labels) next.labels = { ...next.labels, ...overrides.labels };
+  if (overrides.fixedLessons) next.fixedLessons = overrides.fixedLessons;
+  if (overrides.specialNote) next.specialNote = overrides.specialNote;
+  next._overrides = overrides;
+  return next;
+}
+
+export function weekStorageKey(model) {
+  return `week:${model.friday}:${model.current?.parasha || 'unknown'}`;
+}

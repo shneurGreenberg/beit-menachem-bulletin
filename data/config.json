@@ -1,0 +1,6 @@
+{
+  "note": "הגדרות הפעילות נמצאות ב-js/config.js. קובץ זה לתיעוד/גיבוי.",
+  "location": "Beit Shemesh geonameid 295432",
+  "defaultEditPassword": "menachem",
+  "pending": "כשתגיע טבלת הזמנים המקומית — לעדכן את js/times.js"
+}

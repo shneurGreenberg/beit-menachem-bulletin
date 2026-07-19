@@ -1,0 +1,593 @@
+@import url('https://fonts.googleapis.com/css2?family=Frank+Ruhl+Libre:wght@400;500;700;900&family=Heebo:wght@400;500;600;700;800&display=swap');
+
+:root {
+  --ink: #111111;
+  --muted: #4a4a4a;
+  --line: #222222;
+  --soft: #e8e8e8;
+  --soft-2: #f3f3f3;
+  --paper: #ffffff;
+  --shabbat: #6b1d2a;
+  --shabbat-soft: #f7eef0;
+  --toolbar: #1a1a1a;
+  --radius: 10px;
+  --font-display: 'Frank Ruhl Libre', 'Times New Roman', serif;
+  --font-body: 'Heebo', 'Arial', sans-serif;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  font-size: 16px;
+}
+
+body {
+  margin: 0;
+  color: var(--ink);
+  background:
+    radial-gradient(ellipse at 20% 0%, #ececec 0%, transparent 45%),
+    radial-gradient(ellipse at 80% 10%, #f5f5f5 0%, transparent 40%),
+    linear-gradient(180deg, #f0f0f0 0%, #e4e4e4 100%);
+  font-family: var(--font-body);
+  line-height: 1.45;
+  min-height: 100vh;
+}
+
+[hidden] {
+  display: none !important;
+}
+
+.toolbar {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+  justify-content: center;
+  padding: 0.65rem 0.75rem;
+  background: var(--toolbar);
+  color: #fff;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.25);
+}
+
+.toolbar button,
+.toolbar select {
+  font-family: var(--font-body);
+  font-size: 0.9rem;
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff;
+  border-radius: 999px;
+  padding: 0.45rem 0.9rem;
+  cursor: pointer;
+}
+
+.toolbar button:hover,
+.toolbar select:hover {
+  background: rgba(255, 255, 255, 0.18);
+}
+
+.toolbar button[aria-pressed='true'] {
+  background: #fff;
+  color: #111;
+  border-color: #fff;
+}
+
+.toolbar select {
+  max-width: 11rem;
+}
+
+.toolbar .spacer {
+  flex: 1;
+  min-width: 0.5rem;
+}
+
+#loading {
+  max-width: 28rem;
+  margin: 4rem auto;
+  text-align: center;
+  font-family: var(--font-display);
+  font-size: 1.25rem;
+}
+
+#loading .error {
+  color: #8b0000;
+}
+
+.page-wrap {
+  max-width: 820px;
+  margin: 1.25rem auto 3rem;
+  padding: 0 0.75rem;
+}
+
+.sheet {
+  background: var(--paper);
+  color: var(--ink);
+  border: 1px solid #ccc;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.08);
+  padding: 1.5rem 1.35rem 1.75rem;
+}
+
+.ornament {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+.ornament::before,
+.ornament::after {
+  content: '✦';
+  opacity: 0.55;
+}
+
+.synagogue-name {
+  margin: 0.35rem 0 0.5rem;
+  text-align: center;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: clamp(1.15rem, 3.2vw, 1.55rem);
+  letter-spacing: 0.01em;
+  line-height: 1.35;
+}
+
+.week-title {
+  margin: 0 0 1rem;
+  text-align: center;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: clamp(1.05rem, 2.8vw, 1.35rem);
+  text-decoration: underline;
+  text-underline-offset: 0.2em;
+}
+
+.section {
+  border: 2px solid var(--line);
+  border-radius: var(--radius);
+  padding: 0.9rem 0.85rem 1rem;
+  margin-bottom: 1rem;
+  background: var(--paper);
+}
+
+.section-shabbat {
+  background: linear-gradient(180deg, #fafafa 0%, #fff 40%);
+}
+
+.section-week {
+  background: linear-gradient(180deg, #f7f7f7 0%, #fff 50%);
+}
+
+.section-head {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  margin-bottom: 0.75rem;
+  padding-bottom: 0.55rem;
+  border-bottom: 2px solid var(--ink);
+}
+
+.section-kicker {
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.section-title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 1.2rem;
+  font-weight: 700;
+}
+
+.hero-times {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.65rem;
+  margin-bottom: 0.9rem;
+}
+
+.hero-card {
+  border: 2px solid var(--ink);
+  border-radius: var(--radius);
+  padding: 0.7rem 0.5rem;
+  text-align: center;
+  background: var(--soft-2);
+}
+
+.hero-card .label {
+  display: block;
+  font-size: 0.92rem;
+  font-weight: 600;
+  margin-bottom: 0.2rem;
+}
+
+.hero-card .time {
+  display: block;
+  font-family: var(--font-display);
+  font-size: clamp(1.8rem, 5vw, 2.35rem);
+  font-weight: 900;
+  line-height: 1.1;
+  font-variant-numeric: tabular-nums;
+}
+
+.block-title {
+  margin: 0.85rem 0 0.4rem;
+  font-size: 0.95rem;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  border-right: 4px solid var(--ink);
+  padding-right: 0.45rem;
+}
+
+.schedule {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 0.75rem;
+  align-items: baseline;
+  padding: 0.28rem 0.35rem;
+  border-bottom: 1px dashed #d0d0d0;
+}
+
+.row:last-child {
+  border-bottom: 0;
+}
+
+.row-label {
+  font-weight: 500;
+}
+
+.row-time {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 1.15rem;
+  font-variant-numeric: tabular-nums;
+  min-width: 3.5rem;
+  text-align: left;
+  direction: ltr;
+}
+
+.row.highlight-line {
+  background: var(--soft);
+  border: 1px solid #bbb;
+  border-radius: 6px;
+  margin-top: 0.25rem;
+  grid-template-columns: 1fr;
+}
+
+.row.sub-note {
+  grid-template-columns: 1fr;
+  color: var(--muted);
+  font-size: 0.92rem;
+  border-bottom: 0;
+  padding-top: 0;
+}
+
+.row.is-overridden .row-time {
+  text-decoration: underline;
+  text-decoration-style: dotted;
+}
+
+body.edit-mode .editable {
+  outline: 1px dashed #999;
+  outline-offset: 2px;
+  border-radius: 4px;
+  cursor: text;
+}
+
+body.edit-mode .editable:focus {
+  outline: 2px solid var(--ink);
+  background: #fffbea;
+}
+
+.important-message {
+  margin: 0.85rem 0;
+  border: 3px solid var(--shabbat);
+  border-radius: var(--radius);
+  background: var(--shabbat-soft);
+  padding: 0.75rem 0.85rem;
+  position: relative;
+}
+
+.msg-badge {
+  display: inline-block;
+  background: var(--shabbat);
+  color: #fff;
+  font-weight: 800;
+  font-size: 0.78rem;
+  letter-spacing: 0.04em;
+  padding: 0.2rem 0.55rem;
+  border-radius: 4px;
+  margin-bottom: 0.45rem;
+}
+
+.msg-body {
+  font-size: 1.02rem;
+  font-weight: 600;
+  white-space: pre-wrap;
+  min-height: 1.5em;
+}
+
+.msg-placeholder {
+  color: #8a6a70;
+  font-weight: 500;
+}
+
+.divider {
+  text-align: center;
+  color: #888;
+  letter-spacing: 0.2em;
+  margin: 0.25rem 0 1rem;
+  user-select: none;
+}
+
+.lessons {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+  margin-top: 0.5rem;
+}
+
+.lesson-block h4 {
+  margin: 0 0 0.25rem;
+  font-family: var(--font-display);
+  font-size: 1.05rem;
+  border-bottom: 1px solid #ccc;
+  padding-bottom: 0.15rem;
+}
+
+.special-days {
+  margin-top: 0.85rem;
+  padding: 0.65rem 0.75rem;
+  border: 1px solid #999;
+  background: repeating-linear-gradient(
+    -45deg,
+    #fafafa,
+    #fafafa 8px,
+    #f0f0f0 8px,
+    #f0f0f0 16px
+  );
+  border-radius: 8px;
+}
+
+.special-days h3 {
+  margin: 0 0 0.35rem;
+  font-size: 0.95rem;
+}
+
+.special-days ul {
+  margin: 0;
+  padding-right: 1.1rem;
+}
+
+.sheet-footer {
+  margin-top: 1.25rem;
+  text-align: center;
+}
+
+.shabbat-shalom {
+  font-family: var(--font-display);
+  font-size: 1.6rem;
+  font-weight: 700;
+  margin: 0.25rem 0 0.5rem;
+}
+
+.footer-rule {
+  border: 0;
+  border-top: 2px solid var(--ink);
+  margin: 0.5rem auto;
+  width: min(92%, 28rem);
+}
+
+.slogan {
+  margin: 0.35rem 0 0;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 0.98rem;
+}
+
+.source-note {
+  margin-top: 0.85rem;
+  text-align: center;
+  font-size: 0.75rem;
+  color: #777;
+}
+
+.side-panel {
+  position: fixed;
+  inset-inline-end: 0.75rem;
+  bottom: 0.75rem;
+  width: min(22rem, calc(100vw - 1.5rem));
+  max-height: min(60vh, 28rem);
+  overflow: auto;
+  background: #fff;
+  border: 2px solid #111;
+  border-radius: 12px;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.2);
+  z-index: 60;
+  padding: 0.75rem;
+}
+
+.side-panel header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.5rem;
+}
+
+.side-panel h2 {
+  margin: 0;
+  font-size: 1.05rem;
+  font-family: var(--font-display);
+}
+
+.side-panel button.icon {
+  border: 0;
+  background: transparent;
+  font-size: 1.2rem;
+  cursor: pointer;
+}
+
+#history-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+#history-list li {
+  margin-bottom: 0.35rem;
+}
+
+.history-item {
+  width: 100%;
+  text-align: right;
+  border: 1px solid #ddd;
+  background: #fafafa;
+  border-radius: 8px;
+  padding: 0.5rem 0.65rem;
+  cursor: pointer;
+  font-family: var(--font-body);
+}
+
+.history-item:hover {
+  border-color: #111;
+}
+
+.history-title {
+  display: block;
+  font-weight: 700;
+  font-size: 0.92rem;
+}
+
+.history-date {
+  display: block;
+  font-size: 0.78rem;
+  color: #666;
+  direction: ltr;
+  text-align: right;
+}
+
+.edit-panel {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  justify-content: center;
+  padding: 0.5rem;
+  background: #fff8e7;
+  border-bottom: 1px solid #e0c98a;
+}
+
+.edit-panel button,
+.edit-panel select {
+  font-family: var(--font-body);
+  border: 1px solid #333;
+  background: #fff;
+  border-radius: 8px;
+  padding: 0.4rem 0.7rem;
+  cursor: pointer;
+}
+
+#toast {
+  position: fixed;
+  bottom: 1rem;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #111;
+  color: #fff;
+  padding: 0.55rem 1rem;
+  border-radius: 999px;
+  z-index: 80;
+  font-size: 0.95rem;
+}
+
+.muted {
+  color: #777;
+}
+
+@media (max-width: 560px) {
+  .sheet {
+    padding: 1rem 0.8rem 1.25rem;
+  }
+
+  .hero-times {
+    gap: 0.45rem;
+  }
+
+  .row {
+    grid-template-columns: 1fr auto;
+  }
+
+  .toolbar {
+    justify-content: flex-start;
+    overflow-x: auto;
+  }
+}
+
+@media print {
+  body {
+    background: #fff;
+  }
+
+  .toolbar,
+  .edit-panel,
+  .side-panel,
+  #toast,
+  .source-note {
+    display: none !important;
+  }
+
+  .page-wrap {
+    margin: 0;
+    max-width: none;
+    padding: 0;
+  }
+
+  .sheet {
+    border: 0;
+    box-shadow: none;
+    padding: 0;
+  }
+
+  .important-message {
+    background: #fff !important;
+    border-width: 2.5px;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  .msg-badge {
+    background: #111 !important;
+    color: #fff !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  .section {
+    break-inside: avoid;
+  }
+
+  a {
+    text-decoration: none;
+    color: inherit;
+  }
+}
+
+@page {
+  size: A4;
+  margin: 12mm;
+}
