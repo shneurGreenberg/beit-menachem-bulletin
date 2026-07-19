@@ -261,6 +261,11 @@ function renderBulletin(model) {
     'has-overrides',
     Boolean(model._overrides && Object.keys(model._overrides.times || {}).length),
   );
+
+  // אחרי רינדור — יישור התצוגה המקדימה למראה ההדפסה
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => fitSheetToA4Page());
+  });
 }
 
 function bindRowLabels(rootSel, map) {
@@ -560,38 +565,43 @@ function clearPrintFit() {
   sheet.style.transform = '';
   sheet.style.width = '';
   sheet.style.height = '';
+  sheet.style.minHeight = '';
   sheet.style.transformOrigin = '';
 }
 
-/** בהדפסה בלבד: הקטנה קלה כדי שהכל ייכנס לעמוד A4 אחד */
-function fitSheetForPrint() {
+function isPhoneLayoutViewport() {
+  return window.matchMedia('(max-width: 820px)').matches;
+}
+
+/** התאמה לעמוד A4 — גם בתצוגה מקדימה וגם בהדפסה */
+function fitSheetToA4Page() {
   const sheet = $('.sheet');
-  if (!sheet) return;
+  if (!sheet || isPhoneLayoutViewport()) {
+    clearPrintFit();
+    return;
+  }
+
   clearPrintFit();
   sheet.classList.add('is-print-scaling');
-
-  const prev = {
-    height: sheet.style.height,
-    maxHeight: sheet.style.maxHeight,
-    overflow: sheet.style.overflow,
-  };
   sheet.style.height = 'auto';
-  sheet.style.maxHeight = 'none';
-  sheet.style.overflow = 'visible';
-  const contentH = Math.max(sheet.scrollHeight, sheet.getBoundingClientRect().height);
-  sheet.style.height = prev.height;
-  sheet.style.maxHeight = prev.maxHeight;
-  sheet.style.overflow = prev.overflow;
+  sheet.style.minHeight = '0';
+  sheet.style.width = '210mm';
 
+  const contentH = sheet.scrollHeight;
   const pageHpx = (297 * 96) / 25.4;
   let scale = Math.min(1, (pageHpx * 0.97) / contentH);
   if (scale < 0.7) scale = 0.7;
+
   if (scale < 0.995) {
     sheet.style.transformOrigin = 'top center';
     sheet.style.transform = `scale(${scale})`;
-    // שומרים רוחב יציב אחרי scale
-    sheet.style.width = '210mm';
   }
+  // מסגרת A4 קבועה בתצוגה המקדימה
+  sheet.style.minHeight = '297mm';
+}
+
+function fitSheetForPrint() {
+  fitSheetToA4Page();
 }
 
 function persistMessages(messages) {
@@ -729,7 +739,14 @@ document.addEventListener('DOMContentLoaded', () => {
   loadWeek();
 
   window.addEventListener('beforeprint', fitSheetForPrint);
-  window.addEventListener('afterprint', clearPrintFit);
+  window.addEventListener('afterprint', () => {
+    // אחרי הדפסה — מחזירים תצוגה מקדימה מותאמת
+    fitSheetToA4Page();
+  });
+  window.addEventListener('resize', () => {
+    clearTimeout(fitSheetToA4Page._t);
+    fitSheetToA4Page._t = setTimeout(fitSheetToA4Page, 150);
+  });
 });
 
 // silence unused in lint
