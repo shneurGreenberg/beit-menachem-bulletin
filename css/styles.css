@@ -276,6 +276,7 @@ body.fit-measure .lesson-head-tools,
 body.fit-measure .lesson-del,
 body.fit-measure .lesson-add,
 body.fit-measure .lesson-add-block,
+body.fit-measure .row-reset,
 body.fit-measure .msg-remove {
   display: none !important;
 }
@@ -380,6 +381,29 @@ body.fit-measure .msg-remove {
 
 .lesson-line.is-edit .lesson-del {
   align-self: center;
+}
+
+/* כפתור החזרה לזמן אוטומטי לשורת זמן שנערכה ידנית */
+.row.has-reset {
+  grid-template-columns: 1fr auto auto;
+}
+
+.row-reset {
+  align-self: center;
+  border: 1px solid #999;
+  background: #fff;
+  color: #333;
+  border-radius: 6px;
+  padding: 0 0.35rem;
+  font-size: 0.85rem;
+  line-height: 1.4;
+  cursor: pointer;
+}
+
+.row-time.is-invalid {
+  color: #b00020;
+  outline: 1px solid #b00020;
+  background: #fff0f0;
 }
 
 .row.is-overridden .row-time {
@@ -587,6 +611,106 @@ body.edit-mode .editable:focus {
   color: #777;
 }
 
+.edit-panel button.is-dirty {
+  background: #fff3cd;
+  border-color: #b8860b;
+  font-weight: 700;
+}
+
+.edit-dirty {
+  color: #b00020;
+  font-weight: 700;
+  font-size: 0.8rem;
+  align-self: center;
+}
+
+/* מודאל כללי (כניסה / שינוי סיסמה) */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 120;
+  background: rgba(0, 0, 0, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+}
+
+.modal-dialog {
+  width: min(22rem, 100%);
+  background: #fff;
+  border-radius: 14px;
+  padding: 1rem;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.25);
+  font-family: var(--font-body);
+}
+
+.modal-dialog header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.8rem;
+  font-family: var(--font-display);
+  font-size: 1.1rem;
+}
+
+.modal-close {
+  border: 0;
+  background: transparent;
+  font-size: 1.4rem;
+  cursor: pointer;
+  line-height: 1;
+}
+
+.modal-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  margin-bottom: 0.6rem;
+  font-size: 0.9rem;
+}
+
+.modal-field input {
+  font-family: var(--font-body);
+  font-size: 1rem;
+  padding: 0.5rem 0.6rem;
+  border: 1px solid #999;
+  border-radius: 8px;
+}
+
+.modal-show {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.85rem;
+  color: var(--muted);
+  margin-bottom: 0.8rem;
+}
+
+.modal-actions {
+  display: flex;
+  gap: 0.5rem;
+  justify-content: flex-start;
+}
+
+.modal-actions button {
+  font-family: var(--font-body);
+  border-radius: 999px;
+  padding: 0.5rem 1rem;
+  cursor: pointer;
+  border: 1px solid #333;
+}
+
+.modal-submit {
+  background: #111;
+  color: #fff;
+}
+
+.modal-cancel {
+  background: #fff;
+  color: #111;
+}
+
 .share-overlay {
   position: fixed;
   inset: 0;
@@ -783,6 +907,7 @@ body.capture-print .lesson-head-tools,
 body.capture-print .lesson-del,
 body.capture-print .lesson-add,
 body.capture-print .lesson-add-block,
+body.capture-print .row-reset,
 body.capture-print #loading,
 body.capture-print .share-overlay {
   display: none !important;
@@ -885,6 +1010,7 @@ body.capture-phone .board {
   .lesson-del,
   .lesson-add,
   .lesson-add-block,
+  .row-reset,
   #loading,
   .share-overlay {
     display: none !important;

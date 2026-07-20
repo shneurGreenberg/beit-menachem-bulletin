@@ -15,6 +15,8 @@ import {
   getHistoryEntry,
   isEditUnlocked,
   setEditUnlocked,
+  getCustomPasswordHash,
+  setCustomPasswordHash,
 } from './storage.js';
 import { MESSAGE_TEMPLATES, getTemplate } from './templates.js';
 import { captureSheetToPng } from './capture.js';
@@ -24,7 +26,11 @@ const state = {
   autoModel: null,
   editMode: false,
   viewingHistoryId: null,
+  dirty: false,
+  undoStack: [],
 };
+
+const UNDO_LIMIT = 40;
 
 /** מיקומי הנחה של הודעות בלוח + כיתוב לכפתורים */
 const PLACEMENTS = [
@@ -60,12 +66,20 @@ function setHidden(sel, hidden) {
 
 function timeCell(key, value, editable) {
   const overridden = state.model?._overrides?.times?.[key] != null;
+  const showReset = editable && overridden;
   return `
-    <div class="row ${overridden ? 'is-overridden' : ''}" data-time-key="${key}">
+    <div class="row ${overridden ? 'is-overridden' : ''} ${
+      showReset ? 'has-reset' : ''
+    }" data-time-key="${key}">
       <span class="row-label" data-label-for="${key}"></span>
       <span class="row-time ${editable ? 'editable' : ''}"
             data-key="${key}"
             ${editable ? 'contenteditable="true" spellcheck="false"' : ''}>${escapeHtml(value)}</span>
+      ${
+        showReset
+          ? `<button type="button" class="row-reset" data-reset-time="${key}" title="החזרה לזמן האוטומטי" aria-label="החזרה לזמן האוטומטי">↺</button>`
+          : ''
+      }
     </div>`;
 }
 
@@ -444,8 +458,39 @@ function readOverridesFromDom() {
   };
 }
 
+/** מסמן/מנקה מצב "שינויים לא שמורים" */
+function setDirty(on) {
+  state.dirty = on;
+  const flag = $('#dirty-flag');
+  if (flag) flag.hidden = !on;
+  $('#btn-save')?.classList.toggle('is-dirty', on);
+}
+
+/** ביטול השינוי האחרון (Undo) */
+function undoLast() {
+  if (!state.undoStack.length) {
+    showToast('אין מה לבטל');
+    return;
+  }
+  const prev = state.undoStack.pop();
+  setWeekOverrides(state.model.friday, prev);
+  state.model = applyOverrides(state.autoModel, {
+    ...prev,
+    importantMessages: normalizeMessages(prev),
+  });
+  saveHistoryEntry(state.model);
+  renderBulletin(state.model);
+  setDirty(false);
+  showToast('בוטל השינוי האחרון');
+}
+
 /** שומר overrides ל-localStorage, מחשב מודל מחדש ומרנדר */
 function storeOverrides(overrides) {
+  // צילום מצב קודם עבור ביטול (Undo)
+  const prev = getWeekOverrides(state.model.friday);
+  state.undoStack.push(JSON.parse(JSON.stringify(prev || {})));
+  if (state.undoStack.length > UNDO_LIMIT) state.undoStack.shift();
+
   overrides.importantMessages = (overrides.importantMessages || []).filter((m) =>
     String(m?.text || '').trim(),
   );
@@ -454,6 +499,7 @@ function storeOverrides(overrides) {
   state.model = applyOverrides(state.autoModel, overrides);
   saveHistoryEntry(state.model);
   renderBulletin(state.model);
+  setDirty(false);
 }
 
 /** קורא את מצב ה-DOM, מבצע שינוי (mutate) ושומר מיד — לפעולות כפתורים */
@@ -541,6 +587,91 @@ function showToast(msg) {
   }, 1800);
 }
 
+/**
+ * מודאל כללי עם שדות קלט. מחזיר Promise עם ערכי השדות, או null אם בוטל.
+ * fields: [{ name, label, type }]
+ */
+function showModal({ title, fields, submitLabel = 'אישור' }) {
+  return new Promise((resolve) => {
+    const overlay = document.createElement('div');
+    overlay.className = 'modal-overlay';
+    const fieldsHtml = fields
+      .map(
+        (f) => `
+        <label class="modal-field">
+          <span>${escapeHtml(f.label)}</span>
+          <input type="${f.type || 'text'}" name="${f.name}" autocomplete="off" />
+        </label>`,
+      )
+      .join('');
+    overlay.innerHTML = `
+      <form class="modal-dialog" role="dialog" aria-label="${escapeHtml(title)}" aria-modal="true">
+        <header>
+          <strong>${escapeHtml(title)}</strong>
+          <button type="button" class="modal-close" aria-label="סגירה">×</button>
+        </header>
+        ${fieldsHtml}
+        <label class="modal-show"><input type="checkbox" name="__show" /> הצגת סיסמה</label>
+        <div class="modal-actions">
+          <button type="button" class="modal-cancel">ביטול</button>
+          <button type="submit" class="modal-submit">${escapeHtml(submitLabel)}</button>
+        </div>
+      </form>`;
+    document.body.appendChild(overlay);
+
+    const form = overlay.querySelector('form');
+    const done = (result) => {
+      overlay.remove();
+      document.removeEventListener('keydown', onKey);
+      resolve(result);
+    };
+    const onKey = (e) => {
+      if (e.key === 'Escape') done(null);
+    };
+    document.addEventListener('keydown', onKey);
+
+    overlay.querySelector('.modal-close').addEventListener('click', () => done(null));
+    overlay.querySelector('.modal-cancel').addEventListener('click', () => done(null));
+    overlay.addEventListener('mousedown', (e) => {
+      if (e.target === overlay) done(null);
+    });
+    overlay.querySelector('[name="__show"]').addEventListener('change', (e) => {
+      overlay
+        .querySelectorAll('input[type="password"], input[type="text"][name]:not([name="__show"])')
+        .forEach((inp) => {
+          if (inp.name === '__show') return;
+          inp.type = e.target.checked ? 'text' : 'password';
+        });
+    });
+    form.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const values = {};
+      fields.forEach((f) => {
+        values[f.name] = overlay.querySelector(`[name="${f.name}"]`)?.value ?? '';
+      });
+      done(values);
+    });
+
+    requestAnimationFrame(() => overlay.querySelector('input')?.focus());
+  });
+}
+
+/** מאמת סיסמה: אם הוגדרה סיסמה מותאמת היא מחליפה את ברירת המחדל */
+async function verifyPassword(pwd) {
+  const h = await hashPassword(pwd);
+  const custom = getCustomPasswordHash();
+  if (custom) return h === custom;
+  return h === CONFIG.editPasswordHash || pwd === DEFAULT_PASSWORD;
+}
+
+function enterEditMode() {
+  setEditUnlocked(true);
+  state.editMode = true;
+  setHidden('#edit-panel', false);
+  renderBulletin(state.model);
+  updateEditButtons();
+}
+
 async function tryUnlockEdit() {
   if (isEditUnlocked()) {
     state.editMode = true;
@@ -549,20 +680,45 @@ async function tryUnlockEdit() {
     updateEditButtons();
     return;
   }
-  const pwd = prompt('סיסמת עריכה:');
-  if (pwd == null) return;
-  const h = await hashPassword(pwd);
-  const ok = h === CONFIG.editPasswordHash || pwd === DEFAULT_PASSWORD;
-  if (!ok) {
-    alert('סיסמה שגויה');
+  const res = await showModal({
+    title: 'כניסה למצב עריכה',
+    fields: [{ name: 'pwd', label: 'סיסמת עריכה', type: 'password' }],
+    submitLabel: 'כניסה',
+  });
+  if (!res) return;
+  if (!(await verifyPassword(res.pwd))) {
+    showToast('סיסמה שגויה');
     return;
   }
-  setEditUnlocked(true);
-  state.editMode = true;
-  setHidden('#edit-panel', false);
-  renderBulletin(state.model);
-  updateEditButtons();
+  enterEditMode();
   showToast('מצב עריכה פעיל');
+}
+
+async function changePassword() {
+  const res = await showModal({
+    title: 'שינוי סיסמת עריכה',
+    fields: [
+      { name: 'old', label: 'סיסמה נוכחית', type: 'password' },
+      { name: 'n1', label: 'סיסמה חדשה', type: 'password' },
+      { name: 'n2', label: 'אימות סיסמה חדשה', type: 'password' },
+    ],
+    submitLabel: 'עדכון',
+  });
+  if (!res) return;
+  if (!(await verifyPassword(res.old))) {
+    showToast('הסיסמה הנוכחית שגויה');
+    return;
+  }
+  if (!res.n1 || res.n1.length < 3) {
+    showToast('הסיסמה החדשה קצרה מדי');
+    return;
+  }
+  if (res.n1 !== res.n2) {
+    showToast('הסיסמאות החדשות אינן תואמות');
+    return;
+  }
+  setCustomPasswordHash(await hashPassword(res.n1));
+  showToast('הסיסמה עודכנה');
 }
 
 function lockEdit() {
@@ -571,6 +727,7 @@ function lockEdit() {
   setHidden('#edit-panel', true);
   renderBulletin(state.model);
   updateEditButtons();
+  setDirty(false);
 }
 
 function updateEditButtons() {
@@ -734,6 +891,15 @@ function onEditActionClick(e) {
   const btn = e.target.closest('button');
   if (!btn) return;
 
+  // החזרת זמן בודד לערך האוטומטי
+  if (btn.hasAttribute('data-reset-time')) {
+    const key = btn.getAttribute('data-reset-time');
+    persistOverridesWith((ov) => {
+      if (ov.times) delete ov.times[key];
+    });
+    showToast('הוחזר לזמן האוטומטי');
+    return;
+  }
   // מחיקת הודעה
   if (btn.hasAttribute('data-remove-msg')) {
     const i = Number(btn.getAttribute('data-remove-msg'));
@@ -839,7 +1005,33 @@ function bindUi() {
 
   $('#btn-add-message')?.addEventListener('click', () => addMessage(''));
 
+  $('#btn-change-pw')?.addEventListener('click', changePassword);
+
+  $('#btn-undo')?.addEventListener('click', undoLast);
+
   $('#app')?.addEventListener('click', onEditActionClick);
+
+  // סימון "שינויים לא שמורים" בעת עריכת טקסט
+  $('#app')?.addEventListener('input', (e) => {
+    if (state.editMode && e.target.closest?.('[contenteditable="true"]')) setDirty(true);
+  });
+
+  // ולידציה עדינה לשדות זמן (HH:MM)
+  $('#app')?.addEventListener(
+    'blur',
+    (e) => {
+      const el = e.target.closest?.('.row-time[data-key]');
+      if (!el || !state.editMode) return;
+      const v = el.textContent.trim();
+      let ok = /^\d{1,2}:\d{2}$/.test(v);
+      if (ok) {
+        const [h, m] = v.split(':').map(Number);
+        ok = h < 24 && m < 60;
+      }
+      el.classList.toggle('is-invalid', v !== '' && !ok);
+    },
+    true,
+  );
 
   $('#btn-history')?.addEventListener('click', () => {
     const panel = $('#history-panel');
@@ -897,6 +1089,13 @@ function bindUi() {
     resizeT = setTimeout(fitSheet, 150);
   });
   window.addEventListener('beforeprint', fitSheet);
+
+  window.addEventListener('beforeunload', (e) => {
+    if (state.dirty) {
+      e.preventDefault();
+      e.returnValue = '';
+    }
+  });
 }
 
 document.addEventListener('DOMContentLoaded', () => {
