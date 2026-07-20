@@ -20,6 +20,12 @@ import {
 } from './storage.js';
 import { MESSAGE_TEMPLATES, getTemplate } from './templates.js';
 import { captureSheetToPng } from './capture.js';
+import {
+  parseZmanimFile,
+  saveUploadedZmanimTable,
+  clearUploadedZmanimTable,
+  hasUploadedZmanimTable,
+} from './zmanim-import.js';
 
 const state = {
   model: null,
@@ -350,12 +356,11 @@ function renderBulletin(model) {
   setHtml('#fixed-lessons', renderFixedLessons(model, editable));
   setHtml('#special-days-wrap', renderSpecialDays(model));
 
-  setText(
-    '#source-note',
-    model.source === 'hebcal-beit-shemesh'
-      ? 'זמנים מחושבים לפי בית שמש (Hebcal) · ניתן לעדכן ידנית'
-      : model.source || '',
-  );
+  const sourceNotes = {
+    'zmanim-table': 'זמנים לפי טבלת אדמו״ר הזקן (בית שמש) · ניתן לעדכן ידנית',
+    'hebcal-beit-shemesh': 'זמנים מחושבים לפי בית שמש (Hebcal) · ניתן לעדכן ידנית',
+  };
+  setText('#source-note', sourceNotes[model.source] || model.source || '');
 
   document.body.classList.toggle('edit-mode', editable);
   document.body.classList.toggle(
@@ -721,6 +726,31 @@ async function changePassword() {
   showToast('הסיסמה עודכנה');
 }
 
+/** בחירת קובץ Excel/CSV, פענוח, שמירה ורענון הזמנים */
+function uploadZmanimTable() {
+  const input = document.createElement('input');
+  input.type = 'file';
+  input.accept = '.xlsx,.xls,.csv';
+  input.style.display = 'none';
+  document.body.appendChild(input);
+  input.addEventListener('change', async () => {
+    const file = input.files?.[0];
+    input.remove();
+    if (!file) return;
+    try {
+      showToast('מעבד את הקובץ…');
+      const table = await parseZmanimFile(file);
+      saveUploadedZmanimTable(table);
+      await loadWeek();
+      showToast(`נטענה טבלת זמנים (${Object.keys(table.days).length} ימים)`);
+    } catch (err) {
+      console.error('zmanim upload', err);
+      alert(`לא ניתן לטעון את הקובץ.\n${err?.message || err}`);
+    }
+  });
+  input.click();
+}
+
 function lockEdit() {
   state.editMode = false;
   setEditUnlocked(false);
@@ -1008,6 +1038,19 @@ function bindUi() {
   $('#btn-change-pw')?.addEventListener('click', changePassword);
 
   $('#btn-undo')?.addEventListener('click', undoLast);
+
+  $('#btn-upload-zmanim')?.addEventListener('click', uploadZmanimTable);
+
+  $('#btn-clear-zmanim')?.addEventListener('click', async () => {
+    if (!hasUploadedZmanimTable()) {
+      showToast('אין טבלה שהועלתה');
+      return;
+    }
+    if (!confirm('להסיר את טבלת הזמנים שהועלתה ולחזור לברירת המחדל?')) return;
+    clearUploadedZmanimTable();
+    await loadWeek();
+    showToast('טבלת הזמנים הוסרה');
+  });
 
   $('#app')?.addEventListener('click', onEditActionClick);
 
