@@ -114,6 +114,7 @@ body {
  * (בלי transform — הוא שובר הדפסה לעמוד שני)
  */
 .sheet {
+  --u: 1;
   width: var(--a4-w);
   max-width: 100%;
   height: var(--a4-h);
@@ -122,18 +123,18 @@ body {
   background: var(--paper);
   border: 1px solid #bbb;
   box-shadow: 0 6px 22px rgba(0, 0, 0, 0.1);
-  padding: 4mm 5mm;
+  padding: calc(4mm * var(--u)) calc(5mm * var(--u));
   display: flex;
   flex-direction: column;
-  gap: 1.6mm;
+  gap: calc(1.6mm * var(--u));
   overflow: hidden;
-  font-size: 10.5pt;
+  font-size: calc(10.5pt * var(--u));
 }
 
 .mast-name {
   font-family: var(--font-display);
   font-weight: 700;
-  font-size: 12.5pt;
+  font-size: calc(12.5pt * var(--u));
   line-height: 1.15;
   text-align: center;
   flex: 0 0 auto;
@@ -142,7 +143,7 @@ body {
 .zman-strip {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 2mm;
+  gap: calc(2mm * var(--u));
   flex: 0 0 auto;
 }
 
@@ -158,13 +159,13 @@ body {
 
 .zman-label {
   font-weight: 700;
-  font-size: 10pt;
+  font-size: calc(10pt * var(--u));
 }
 
 .zman-time {
   font-family: var(--font-display);
   font-weight: 900;
-  font-size: 20pt;
+  font-size: calc(20pt * var(--u));
   line-height: 1;
   direction: ltr;
   font-variant-numeric: tabular-nums;
@@ -173,7 +174,7 @@ body {
 .messages-wrap {
   display: flex;
   flex-direction: column;
-  gap: 2mm;
+  gap: calc(2mm * var(--u));
   flex: 0 0 auto;
 }
 
@@ -181,55 +182,111 @@ body {
   display: none;
 }
 
-.important-message {
+/* קבוצת הודעות תחת מסגרת/רקע יחיד (כמה הודעות = הדגשה אחת) */
+.message-group {
   border: 2.5px solid var(--shabbat);
   background: var(--shabbat-soft);
-  padding: 2mm 3mm;
+  padding: calc(2mm * var(--u)) calc(3mm * var(--u));
+  display: flex;
+  flex-direction: column;
+  gap: calc(1.4mm * var(--u));
 }
 
-.important-message.is-empty {
+.message-group.is-empty {
   border-style: dashed;
 }
 
-.msg-head {
+.msg-item {
   display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 1mm;
+  flex-direction: column;
+  gap: calc(0.8mm * var(--u));
 }
 
-.msg-badge {
+.msg-title {
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: calc(11pt * var(--u));
+  color: var(--shabbat);
+  line-height: 1.15;
+}
+
+/* מפריד עדין בין הודעות באותה קבוצה (נקודות) */
+.msg-sep {
+  text-align: center;
+  color: var(--shabbat);
+  letter-spacing: 0.35em;
+  font-size: calc(8pt * var(--u));
+  line-height: 1;
+  opacity: 0.65;
+}
+
+.msg-tools {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.25rem;
+  margin-bottom: 0.15rem;
+}
+
+.msg-tools-label {
+  font-size: 0.72rem;
+  color: var(--muted);
+}
+
+.msg-place {
+  display: inline-flex;
+  gap: 0.15rem;
+}
+
+.msg-place-btn,
+.msg-tool {
+  font-family: var(--font-body);
+  font-size: 0.72rem;
+  border: 1px solid #999;
+  background: #fff;
+  color: #222;
+  border-radius: 6px;
+  padding: 0.12rem 0.4rem;
+  cursor: pointer;
+  line-height: 1.2;
+}
+
+.msg-place-btn.is-active {
   background: var(--shabbat);
   color: #fff;
-  font-weight: 800;
-  font-size: 10pt;
-  padding: 0.5mm 2mm;
+  border-color: var(--shabbat);
 }
 
-.msg-remove {
-  border: 1px solid var(--shabbat);
-  background: #fff;
+.msg-tool.msg-remove {
   color: var(--shabbat);
-  width: 1.4rem;
-  height: 1.4rem;
-  border-radius: 50%;
-  cursor: pointer;
-  line-height: 1;
+  border-color: var(--shabbat);
+  font-weight: 700;
 }
 
 .msg-body {
-  font-size: 10.5pt;
+  font-size: calc(10.5pt * var(--u));
   font-weight: 700;
   white-space: pre-wrap;
   line-height: 1.25;
 }
 
+/* בזמן מדידת התאמה לעמוד מסתירים את כלי העריכה (הם לא נכללים בהדפסה) */
+body.fit-measure .msg-tools,
+body.fit-measure .lesson-head-tools,
+body.fit-measure .lesson-del,
+body.fit-measure .lesson-add,
+body.fit-measure .lesson-add-block,
+body.fit-measure .row-reset,
+body.fit-measure .msg-remove {
+  display: none !important;
+}
+
 .board {
   border: 2px solid #333;
-  padding: 1.6mm;
+  padding: calc(1.6mm * var(--u));
   display: flex;
   flex-direction: column;
-  gap: 1.2mm;
+  gap: calc(1.2mm * var(--u));
   flex: 1 1 auto;
   min-height: 0;
 }
@@ -237,32 +294,32 @@ body {
 .cols {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 3mm;
+  gap: calc(3mm * var(--u));
   align-content: start;
 }
 
 .col {
   display: flex;
   flex-direction: column;
-  gap: 1.2mm;
+  gap: calc(1.2mm * var(--u));
   min-width: 0;
 }
 
 .band {
   font-weight: 800;
   color: #fff;
-  padding: 1.2mm 2mm;
+  padding: calc(1.2mm * var(--u)) calc(2mm * var(--u));
   line-height: 1.25;
 }
 
 .band-main {
-  font-size: 10.5pt;
+  font-size: calc(10.5pt * var(--u));
   text-align: center;
   background: var(--band-main);
 }
 
 .band-sub {
-  font-size: 9.5pt;
+  font-size: calc(9.5pt * var(--u));
   background: var(--band-sub);
 }
 
@@ -274,9 +331,9 @@ body {
 .row {
   display: grid;
   grid-template-columns: 1fr auto;
-  gap: 2mm;
+  gap: calc(2mm * var(--u));
   align-items: baseline;
-  padding: 0.8mm 1mm;
+  padding: calc(0.8mm * var(--u)) 1mm;
   border-bottom: 1px solid #ddd;
 }
 
@@ -286,14 +343,14 @@ body {
 
 .row-label {
   font-weight: 600;
-  font-size: 10.5pt;
+  font-size: calc(10.5pt * var(--u));
   line-height: 1.15;
 }
 
 .row-time {
   font-family: var(--font-display);
   font-weight: 800;
-  font-size: 12.5pt;
+  font-size: calc(12.5pt * var(--u));
   line-height: 1;
   direction: ltr;
   text-align: left;
@@ -306,15 +363,47 @@ body {
   background: var(--soft);
   border: 1px solid #bbb;
   margin-top: 1mm;
-  padding: 1.5mm 2mm;
+  padding: calc(1.5mm * var(--u)) calc(2mm * var(--u));
 }
 
 .row.sub-note {
   grid-template-columns: 1fr;
   color: var(--muted);
-  font-size: 9.5pt;
+  font-size: calc(9.5pt * var(--u));
   border-bottom: 0;
   padding-top: 0;
+}
+
+/* שורות שיעורים במצב עריכה — טור נוסף לכפתור מחיקה */
+.lesson-line.is-edit {
+  grid-template-columns: 1fr auto auto;
+}
+
+.lesson-line.is-edit .lesson-del {
+  align-self: center;
+}
+
+/* כפתור החזרה לזמן אוטומטי לשורת זמן שנערכה ידנית */
+.row.has-reset {
+  grid-template-columns: 1fr auto auto;
+}
+
+.row-reset {
+  align-self: center;
+  border: 1px solid #999;
+  background: #fff;
+  color: #333;
+  border-radius: 6px;
+  padding: 0 0.35rem;
+  font-size: 0.85rem;
+  line-height: 1.4;
+  cursor: pointer;
+}
+
+.row-time.is-invalid {
+  color: #b00020;
+  outline: 1px solid #b00020;
+  background: #fff0f0;
 }
 
 .row.is-overridden .row-time {
@@ -334,26 +423,68 @@ body.edit-mode .editable:focus {
 .lessons {
   display: flex;
   flex-direction: column;
-  gap: 1.5mm;
+  gap: calc(1.5mm * var(--u));
 }
 
 .lesson-block h4 {
   margin: 0 0 0.4mm;
   font-family: var(--font-display);
-  font-size: 11pt;
+  font-size: calc(11pt * var(--u));
   font-weight: 700;
   border-bottom: 1px solid #bbb;
 }
 
+.lesson-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.3rem;
+}
+
+.lesson-head h4 {
+  flex: 1 1 auto;
+}
+
+.lesson-head-tools {
+  display: inline-flex;
+  gap: 0.2rem;
+  flex: 0 0 auto;
+}
+
+.lesson-add,
+.lesson-del,
+.lesson-add-block {
+  font-family: var(--font-body);
+  font-size: 0.72rem;
+  border: 1px solid #999;
+  background: #fff;
+  color: #222;
+  border-radius: 6px;
+  padding: 0.1rem 0.4rem;
+  cursor: pointer;
+  line-height: 1.2;
+}
+
+.lesson-del {
+  color: var(--shabbat);
+  border-color: var(--shabbat);
+  font-weight: 700;
+}
+
+.lesson-add-block {
+  margin-top: 0.4mm;
+  align-self: flex-start;
+}
+
 .special-days {
-  padding: 1.5mm 2.5mm;
+  padding: calc(1.5mm * var(--u)) calc(2.5mm * var(--u));
   border: 1.5px solid #888;
   background: #f7f7f7;
 }
 
 .special-days h3 {
   margin: 0 0 1mm;
-  font-size: 12pt;
+  font-size: calc(12pt * var(--u));
 }
 
 .special-days ul {
@@ -362,7 +493,7 @@ body.edit-mode .editable:focus {
 }
 
 .special-days li {
-  font-size: 12pt;
+  font-size: calc(12pt * var(--u));
   font-weight: 600;
 }
 
@@ -380,7 +511,7 @@ body.edit-mode .editable:focus {
 
 .shabbat-shalom {
   font-family: var(--font-display);
-  font-size: 12pt;
+  font-size: calc(12pt * var(--u));
   font-weight: 800;
 }
 
@@ -391,7 +522,7 @@ body.edit-mode .editable:focus {
 
 .slogan {
   font-family: var(--font-display);
-  font-size: 9pt;
+  font-size: calc(9pt * var(--u));
   font-weight: 700;
   line-height: 1.15;
 }
@@ -478,6 +609,106 @@ body.edit-mode .editable:focus {
 
 .muted {
   color: #777;
+}
+
+.edit-panel button.is-dirty {
+  background: #fff3cd;
+  border-color: #b8860b;
+  font-weight: 700;
+}
+
+.edit-dirty {
+  color: #b00020;
+  font-weight: 700;
+  font-size: 0.8rem;
+  align-self: center;
+}
+
+/* מודאל כללי (כניסה / שינוי סיסמה) */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 120;
+  background: rgba(0, 0, 0, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+}
+
+.modal-dialog {
+  width: min(22rem, 100%);
+  background: #fff;
+  border-radius: 14px;
+  padding: 1rem;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.25);
+  font-family: var(--font-body);
+}
+
+.modal-dialog header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.8rem;
+  font-family: var(--font-display);
+  font-size: 1.1rem;
+}
+
+.modal-close {
+  border: 0;
+  background: transparent;
+  font-size: 1.4rem;
+  cursor: pointer;
+  line-height: 1;
+}
+
+.modal-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  margin-bottom: 0.6rem;
+  font-size: 0.9rem;
+}
+
+.modal-field input {
+  font-family: var(--font-body);
+  font-size: 1rem;
+  padding: 0.5rem 0.6rem;
+  border: 1px solid #999;
+  border-radius: 8px;
+}
+
+.modal-show {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.85rem;
+  color: var(--muted);
+  margin-bottom: 0.8rem;
+}
+
+.modal-actions {
+  display: flex;
+  gap: 0.5rem;
+  justify-content: flex-start;
+}
+
+.modal-actions button {
+  font-family: var(--font-body);
+  border-radius: 999px;
+  padding: 0.5rem 1rem;
+  cursor: pointer;
+  border: 1px solid #333;
+}
+
+.modal-submit {
+  background: #111;
+  color: #fff;
+}
+
+.modal-cancel {
+  background: #fff;
+  color: #111;
 }
 
 .share-overlay {
@@ -671,6 +902,12 @@ body.capture-print .side-panel,
 body.capture-print #toast,
 body.capture-print .source-note,
 body.capture-print .msg-remove,
+body.capture-print .msg-tools,
+body.capture-print .lesson-head-tools,
+body.capture-print .lesson-del,
+body.capture-print .lesson-add,
+body.capture-print .lesson-add-block,
+body.capture-print .row-reset,
 body.capture-print #loading,
 body.capture-print .share-overlay {
   display: none !important;
@@ -768,6 +1005,12 @@ body.capture-phone .board {
   #toast,
   .source-note,
   .msg-remove,
+  .msg-tools,
+  .lesson-head-tools,
+  .lesson-del,
+  .lesson-add,
+  .lesson-add-block,
+  .row-reset,
   #loading,
   .share-overlay {
     display: none !important;
@@ -788,13 +1031,13 @@ body.capture-phone .board {
     height: 297mm !important;
     max-height: 297mm !important;
     margin: 0 !important;
-    padding: 4mm 5mm !important;
+    padding: calc(4mm * var(--u)) calc(5mm * var(--u)) !important;
     border: 0 !important;
     box-shadow: none !important;
     background: #fff !important;
     overflow: hidden !important;
-    gap: 1.6mm !important;
-    font-size: 10.5pt !important;
+    gap: calc(1.6mm * var(--u)) !important;
+    font-size: calc(10.5pt * var(--u)) !important;
     page-break-after: avoid !important;
     page-break-inside: avoid !important;
     break-inside: avoid !important;

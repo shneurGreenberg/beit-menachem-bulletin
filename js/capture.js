@@ -54,6 +54,7 @@ export async function captureSheetToPng(sheet) {
     maxHeight: sheet.style.maxHeight,
     minHeight: sheet.style.minHeight,
     transform: sheet.style.transform,
+    u: sheet.style.getPropertyValue('--u'),
   };
   const prevWrap = wrap
     ? { width: wrap.style.width, margin: wrap.style.margin, maxWidth: wrap.style.maxWidth }
@@ -70,12 +71,13 @@ export async function captureSheetToPng(sheet) {
       wrap.style.margin = '0';
     }
 
-    // פריסת טלפון: גובה לפי תוכן
+    // פריסת טלפון: גובה לפי תוכן, ובגודל טקסט מלא (בלי הקטנת ההתאמה לעמוד)
     sheet.style.width = `${PHONE_WIDTH}px`;
     sheet.style.height = 'auto';
     sheet.style.maxHeight = 'none';
     sheet.style.minHeight = '0';
     sheet.style.transform = 'none';
+    sheet.style.setProperty('--u', '1');
 
     await waitFrames(3);
 
@@ -117,10 +119,15 @@ export async function captureSheetToPng(sheet) {
           cloned.style.transform = 'none';
           cloned.style.boxShadow = 'none';
           cloned.style.border = 'none';
+          cloned.style.setProperty('--u', '1');
         }
-        doc.querySelectorAll('.source-note, .msg-remove, .toolbar, .edit-panel').forEach((el) => {
-          el.style.display = 'none';
-        });
+        doc
+          .querySelectorAll(
+            '.source-note, .msg-remove, .msg-tools, .lesson-head-tools, .lesson-del, .lesson-add, .lesson-add-block, .toolbar, .edit-panel',
+          )
+          .forEach((el) => {
+            el.style.display = 'none';
+          });
       },
     });
 
@@ -142,6 +149,8 @@ export async function captureSheetToPng(sheet) {
     sheet.style.maxHeight = prevSheet.maxHeight;
     sheet.style.minHeight = prevSheet.minHeight;
     sheet.style.transform = prevSheet.transform;
+    if (prevSheet.u) sheet.style.setProperty('--u', prevSheet.u);
+    else sheet.style.removeProperty('--u');
     if (wrap && prevWrap) {
       wrap.style.width = prevWrap.width;
       wrap.style.margin = prevWrap.margin;

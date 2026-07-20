@@ -9,7 +9,7 @@
       content="עלון שבת שבועי — בית כנסת בית מנחם חב״ד גבעת שרת, בית שמש"
     />
     <title>עלון שבת | בית מנחם</title>
-    <link rel="stylesheet" href="./css/styles.css?v=11" />
+    <link rel="stylesheet" href="./css/styles.css?v=15" />
   </head>
   <body>
     <div class="toolbar" role="toolbar" aria-label="פעולות">
@@ -22,10 +22,14 @@
 
     <div class="edit-panel" id="edit-panel" hidden>
       <button type="button" id="btn-save">שמירת שינויים</button>
+      <button type="button" id="btn-undo">בטל שינוי אחרון</button>
       <button type="button" id="btn-reset">איפוס לזמנים אוטומטיים</button>
       <button type="button" id="btn-add-message">הוסף הודעה</button>
       <select id="template-select" aria-label="תבנית הודעה"></select>
-      <span class="muted">סיסמת עריכה ראשונית: menachem</span>
+      <button type="button" id="btn-upload-zmanim">העלאת טבלת זמנים (Excel)</button>
+      <button type="button" id="btn-clear-zmanim">הסרת טבלת זמנים</button>
+      <button type="button" id="btn-change-pw">שינוי סיסמה</button>
+      <span class="edit-dirty" id="dirty-flag" hidden>● שינויים לא שמורים</span>
     </div>
 
     <div id="loading">טוען זמני שבת לבית שמש…</div>
@@ -64,6 +68,8 @@
             </div>
           </section>
 
+          <div class="messages-wrap" id="messages-mid"></div>
+
           <section class="board" aria-label="השבוע הקרוב">
             <div class="band band-main" id="next-week-title">השבוע הקרוב</div>
             <div class="cols">
@@ -78,6 +84,8 @@
             </div>
             <div id="special-days-wrap"></div>
           </section>
+
+          <div class="messages-wrap" id="messages-bottom"></div>
 
           <footer class="sheet-footer">
             <span class="shabbat-shalom">שבת שלום</span>
@@ -100,6 +108,6 @@
 
     <div id="toast" hidden></div>
 
-    <script type="module" src="./js/app.js?v=11"></script>
+    <script type="module" src="./js/app.js?v=15"></script>
   </body>
 </html>

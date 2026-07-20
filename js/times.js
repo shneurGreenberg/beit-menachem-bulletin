@@ -283,14 +283,104 @@ function assembleModel({
   };
 }
 
+const ZMANIM_TABLE_KEY = 'beit-menachem:zmanimTable';
+
 /**
- * בונה מודל מלא של עלון השבוע מנתוני Hebcal (בית שמש).
- * כשתגיע טבלת הזמנים המקומית — נחליף את מקור השקיעה כאן.
+ * טוען את טבלת הזמנים: קודם טבלה שהועלתה (localStorage), אחרת קובץ הדוגמה.
+ */
+export async function loadZmanimTable() {
+  try {
+    const local = localStorage.getItem(ZMANIM_TABLE_KEY);
+    if (local) {
+      const parsed = JSON.parse(local);
+      if (parsed?.days && Object.keys(parsed.days).length) return parsed;
+    }
+  } catch {
+    /* ignore */
+  }
+  try {
+    const res = await fetch('./data/zmanim-table.json');
+    if (res.ok) {
+      const parsed = await res.json();
+      if (parsed?.days && Object.keys(parsed.days).length) return parsed;
+    }
+  } catch {
+    /* optional */
+  }
+  return null;
+}
+
+/**
+ * דורס את זמני העלון לפי טבלת הזמנים (שיטת אדמו"ר הזקן):
+ * - "שקיעה" בעלון = שקיעה אמיתית מהטבלה
+ * - "יציאת השבת" = צאת הכוכבים מהטבלה
+ * - התפילות מחושבות מזמני השמש (היסטים ביחס לשקיעה/צאת)
+ * - שיעור לילדים/תניא לנשים = ברירת מחדל מחושבת, אך נקבעים ידנית (לפי החלטה)
+ */
+export function applyZmanimTable(model, table) {
+  const days = table?.days;
+  if (!model?.friday || !days) return model;
+  const fri = days[model.friday];
+  const sat = days[model.saturday];
+  if (!fri?.shkiaAmitit || !sat?.shkiaAmitit) return model;
+
+  const friDate = new Date(`${model.friday}T12:00:00`);
+  const satDate = new Date(`${model.saturday}T12:00:00`);
+  const o = CONFIG.offsets;
+  const t = { ...model.times };
+
+  const sunsetFri = parseTimeOnDate(friDate, fri.shkiaAmitit);
+  const sunsetSat = parseTimeOnDate(satDate, sat.shkiaAmitit);
+
+  // שקיעה בעלון = שקיעה אמיתית
+  t.sunsetFriday = fri.shkiaAmitit;
+  t.sunsetShabbat = sat.shkiaAmitit;
+
+  // תפילות/הדלקה — מזמני השמש (היסטים)
+  t.candleLighting = formatTime(addMinutes(sunsetFri, -CONFIG.location.candleLightingMinutes));
+  t.fridayMincha = formatTime(addMinutes(sunsetFri, -o.fridayMinchaBeforeSunset));
+  t.issurMelacha = formatTime(addMinutes(sunsetFri, -o.issurMelachaBeforeSunset));
+  const shabbatMinchaD = addMinutes(sunsetSat, -o.shabbatMinchaBeforeSunset);
+  t.shabbatMincha = formatTime(shabbatMinchaD);
+
+  // יציאת השבת = צאת הכוכבים (המדויק), וערבית ביחס לצאת
+  if (sat.tzeitHakochavim) {
+    const tzeitSat = parseTimeOnDate(satDate, sat.tzeitHakochavim);
+    t.shabbatEnd = sat.tzeitHakochavim;
+    t.shabbatArvit = formatTime(addMinutes(tzeitSat, -o.shabbatArvitBeforeHavdalah));
+  }
+
+  // שיעור לילדים/תניא לנשים — ברירת מחדל, אך לפי החלטה (ניתן לעריכה)
+  t.tanyaWomen = formatTime(addMinutes(shabbatMinchaD, -o.tanyaWomenBeforeMincha));
+  t.childrenStory = formatTime(addMinutes(shabbatMinchaD, -o.childrenStoryBeforeMincha));
+
+  // ימי חול — לפי יום ראשון שאחרי השבת אם קיים בטבלה
+  const sunIso = isoDate(addMinutes(satDate, 24 * 60));
+  const sun = days[sunIso];
+  if (sun?.shkiaAmitit) {
+    const sunDate = new Date(`${sunIso}T12:00:00`);
+    let wm = addMinutes(parseTimeOnDate(sunDate, sun.shkiaAmitit), -o.weekdayMinchaBeforeSunset);
+    if (CONFIG.rounding.weekdayMincha) wm = roundToNiceSlot(wm);
+    t.weekdayMincha = formatTime(wm);
+    if (sun.tzeitHakochavim) {
+      let wa = parseTimeOnDate(sunDate, sun.tzeitHakochavim);
+      if (CONFIG.rounding.weekdayArvit) wa = roundToNiceSlot(wa);
+      t.weekdayArvit = formatTime(wa);
+    }
+  }
+
+  return { ...model, times: t, source: 'zmanim-table' };
+}
+
+/**
+ * בונה מודל מלא של עלון השבוע. אם קיימת טבלת זמנים (אדמו"ר הזקן) —
+ * הזמנים נגזרים ממנה; אחרת מ-Hebcal (בית שמש).
  */
 export async function buildWeekModel(refDate = new Date()) {
   const friday = getCurrentFriday(refDate);
   const saturday = getSaturday(friday);
   const sunday = addMinutes(saturday, 24 * 60);
+  const zmanimTable = await loadZmanimTable();
 
   try {
     const [shabbatData, friZmanim, satZmanim, weekdayZmanim, nextParasha, hebrewDateLabel] =
@@ -320,7 +410,7 @@ export async function buildWeekModel(refDate = new Date()) {
       nextHebrewDateLabel = await fetchHebrewDateLabel(String(nextParasha.date).slice(0, 10));
     }
 
-    return assembleModel({
+    const model = assembleModel({
       friday,
       saturday,
       shabbatData,
@@ -332,13 +422,14 @@ export async function buildWeekModel(refDate = new Date()) {
       hebrewDateLabel,
       nextHebrewDateLabel,
     });
+    return applyZmanimTable(model, zmanimTable);
   } catch (err) {
     console.warn('Hebcal failed, trying local cache', err);
     const cached = await fetch('./data/week.json').then((r) => r.json());
-    if (cached.times && cached.current) return cached;
+    if (cached.times && cached.current) return applyZmanimTable(cached, zmanimTable);
     const fri = cached.friday ? new Date(`${cached.friday}T12:00:00`) : friday;
     const sat = cached.saturday ? new Date(`${cached.saturday}T12:00:00`) : saturday;
-    return assembleModel({
+    const model = assembleModel({
       friday: fri,
       saturday: sat,
       shabbatData: cached.shabbat || { items: [] },
@@ -348,6 +439,7 @@ export async function buildWeekModel(refDate = new Date()) {
       nextParasha: { parashaName: '', shabbatTitle: '', hdate: '' },
       source: cached.source || 'cache',
     });
+    return applyZmanimTable(model, zmanimTable);
   }
 }
 
@@ -377,13 +469,36 @@ function formatHebrewDateLabel(hdate) {
   return `${day} ${month} ${m[3]}`;
 }
 
+/** מיקומים אפשריים להנחת הודעה בלוח */
+export const MESSAGE_PLACEMENTS = ['top', 'mid', 'bottom'];
+
+/**
+ * מחזיר מערך אחיד של הודעות כאובייקטים { text, placement, title }.
+ * תומך לאחור גם במחרוזות בודדות וגם ב-importantMessage הישן.
+ */
 export function normalizeMessages(modelOrOverrides) {
+  let arr = [];
   if (Array.isArray(modelOrOverrides?.importantMessages)) {
-    return modelOrOverrides.importantMessages.filter((m) => String(m || '').trim());
+    arr = modelOrOverrides.importantMessages;
+  } else if (modelOrOverrides?.importantMessage) {
+    arr = [modelOrOverrides.importantMessage];
   }
-  const legacy = modelOrOverrides?.importantMessage;
-  if (legacy && String(legacy).trim()) return [String(legacy).trim()];
-  return [];
+  return arr
+    .map((m) => {
+      if (typeof m === 'string') {
+        const text = m.replace(/\u00a0/g, ' ').trim();
+        return text ? { text, placement: 'top', title: '' } : null;
+      }
+      if (m && typeof m === 'object') {
+        const text = String(m.text ?? '').replace(/\u00a0/g, ' ').trim();
+        if (!text) return null;
+        const placement = MESSAGE_PLACEMENTS.includes(m.placement) ? m.placement : 'top';
+        const title = String(m.title ?? '').replace(/\u00a0/g, ' ').trim();
+        return { text, placement, title };
+      }
+      return null;
+    })
+    .filter(Boolean);
 }
 
 export function applyOverrides(model, overrides) {

@@ -1,6 +1,7 @@
 const OVERRIDES_KEY = 'beit-menachem:overrides';
 const HISTORY_KEY = 'beit-menachem:history';
 const EDIT_SESSION_KEY = 'beit-menachem:editUnlocked';
+const CUSTOM_PW_KEY = 'beit-menachem:pwHash';
 
 export function loadOverrides() {
   try {
@@ -76,4 +77,14 @@ export function isEditUnlocked() {
 export function setEditUnlocked(on) {
   if (on) sessionStorage.setItem(EDIT_SESSION_KEY, '1');
   else sessionStorage.removeItem(EDIT_SESSION_KEY);
+}
+
+/** סיסמת עריכה מותאמת אישית (מחליפה את ברירת המחדל לאחר שינוי) — לכל מכשיר */
+export function getCustomPasswordHash() {
+  return localStorage.getItem(CUSTOM_PW_KEY) || '';
+}
+
+export function setCustomPasswordHash(hash) {
+  if (hash) localStorage.setItem(CUSTOM_PW_KEY, hash);
+  else localStorage.removeItem(CUSTOM_PW_KEY);
 }
