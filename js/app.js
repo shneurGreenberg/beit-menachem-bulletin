@@ -1141,7 +1141,19 @@ function bindUi() {
   });
 }
 
+/** מסיר Service Workers ישנים מאתר המשתמש (Flutter) שעלולים להיתקע על הדומיין */
+async function clearStaleServiceWorkers() {
+  try {
+    if (!('serviceWorker' in navigator)) return;
+    const regs = await navigator.serviceWorker.getRegistrations();
+    await Promise.all(regs.map((r) => r.unregister()));
+  } catch {
+    /* ignore */
+  }
+}
+
 document.addEventListener('DOMContentLoaded', () => {
+  clearStaleServiceWorkers();
   applyPublicViewMode();
   bindUi();
   if (!document.body.classList.contains('public-view') && isEditUnlocked()) {
@@ -1150,7 +1162,6 @@ document.addEventListener('DOMContentLoaded', () => {
   }
   updateEditButtons();
   loadWeek();
-
 });
 
 // silence unused in lint
