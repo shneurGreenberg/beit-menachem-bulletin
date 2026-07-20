@@ -1,5 +1,11 @@
 import { CONFIG, DEFAULT_PASSWORD, hashPassword } from './config.js';
-import { buildWeekModel, applyOverrides, normalizeMessages, weekStorageKey } from './times.js';
+import {
+  buildWeekModel,
+  applyOverrides,
+  normalizeMessages,
+  weekStorageKey,
+  MESSAGE_PLACEMENTS,
+} from './times.js';
 import {
   getWeekOverrides,
   setWeekOverrides,
@@ -18,6 +24,20 @@ const state = {
   autoModel: null,
   editMode: false,
   viewingHistoryId: null,
+};
+
+/** מיקומי הנחה של הודעות בלוח + כיתוב לכפתורים */
+const PLACEMENTS = [
+  { id: 'top', label: 'למעלה' },
+  { id: 'mid', label: 'באמצע' },
+  { id: 'bottom', label: 'למטה' },
+];
+
+/** מיפוי מיקום -> מזהה אזור ב-DOM */
+const ZONE_SEL = {
+  top: '#important-messages',
+  mid: '#messages-mid',
+  bottom: '#messages-bottom',
 };
 
 const $ = (sel, root = document) => root.querySelector(sel);
@@ -91,72 +111,139 @@ function renderSpecialDays(model) {
 
 function renderFixedLessons(model, editable) {
   const lessons = model.fixedLessons || [];
-  if (!lessons.length) return '';
-  return lessons
+  if (!lessons.length && !editable) return '';
+  const blocks = lessons
     .map((day, di) => {
       const lines = (day.items || [])
         .map(
           (it, ii) => `
-          <div class="row">
+          <div class="row lesson-line ${editable ? 'is-edit' : ''}">
             <span class="row-label ${editable ? 'editable' : ''}"
                   data-lesson="${di}-${ii}-label"
                   ${editable ? 'contenteditable="true"' : ''}>${escapeHtml(it.label)}</span>
             <span class="row-time ${editable ? 'editable' : ''}"
                   data-lesson="${di}-${ii}-time"
                   ${editable ? 'contenteditable="true"' : ''}>${escapeHtml(it.time)}</span>
+            ${
+              editable
+                ? `<button type="button" class="lesson-del" data-lesson-del-item="${di}-${ii}" aria-label="מחיקת שורה">×</button>`
+                : ''
+            }
           </div>`,
         )
         .join('');
       return `
-        <div class="lesson-block">
-          <h4 class="${editable ? 'editable' : ''}" data-lesson-day="${di}"
-              ${editable ? 'contenteditable="true"' : ''}>${escapeHtml(day.dayName)}</h4>
+        <div class="lesson-block" data-lesson-block="${di}">
+          <div class="lesson-head">
+            <h4 class="${editable ? 'editable' : ''}" data-lesson-day="${di}"
+                ${editable ? 'contenteditable="true"' : ''}>${escapeHtml(day.dayName)}</h4>
+            ${
+              editable
+                ? `<span class="lesson-head-tools">
+                     <button type="button" class="lesson-add" data-lesson-add-item="${di}">＋ שורה</button>
+                     <button type="button" class="lesson-del" data-lesson-del-block="${di}" aria-label="מחיקת קטגוריה">×</button>
+                   </span>`
+                : ''
+            }
+          </div>
           <div class="schedule">${lines}</div>
         </div>`;
     })
     .join('');
+  const addBlock = editable
+    ? `<button type="button" class="lesson-add-block" data-lesson-add-block>＋ הוספת שיעור / תפילה</button>`
+    : '';
+  return blocks + addBlock;
 }
 
 function getMessages(model) {
   return normalizeMessages(model);
 }
 
+function msgToolsHtml(msg, i) {
+  const places = PLACEMENTS.map(
+    (p) =>
+      `<button type="button" class="msg-place-btn ${
+        msg.placement === p.id ? 'is-active' : ''
+      }" data-place="${p.id}" data-msg="${i}">${p.label}</button>`,
+  ).join('');
+  return `
+    <div class="msg-tools" contenteditable="false">
+      <span class="msg-tools-label">מיקום:</span>
+      <span class="msg-place">${places}</span>
+      <button type="button" class="msg-tool" data-msg-up="${i}" title="הזזה מעלה" aria-label="הזזה מעלה">↑</button>
+      <button type="button" class="msg-tool" data-msg-down="${i}" title="הזזה מטה" aria-label="הזזה מטה">↓</button>
+      <button type="button" class="msg-tool" data-msg-title-toggle="${i}">${
+        msg.title ? 'הסרת כותרת' : 'הוספת כותרת'
+      }</button>
+      <button type="button" class="msg-tool msg-remove" data-remove-msg="${i}" aria-label="מחיקת הודעה">×</button>
+    </div>`;
+}
+
+function msgItemHtml(msg, i, editable) {
+  const titleHtml = msg.title
+    ? `<div class="msg-title ${editable ? 'editable' : ''}" data-msg-title="${i}"
+             ${editable ? 'contenteditable="true"' : ''}>${escapeHtml(msg.title)}</div>`
+    : '';
+  return `
+    <div class="msg-item" data-msg-index="${i}" data-placement="${msg.placement}">
+      ${editable ? msgToolsHtml(msg, i) : ''}
+      ${titleHtml}
+      <div class="msg-body ${editable ? 'editable' : ''}" data-msg-body="${i}"
+           ${editable ? 'contenteditable="true"' : ''}>${escapeHtml(msg.text).replace(
+             /\n/g,
+             '<br>',
+           )}</div>
+    </div>`;
+}
+
 function renderMessages(model, editable) {
-  const wrap = $('#important-messages');
-  if (!wrap) return;
   const messages = getMessages(model);
-  if (!messages.length && !editable) {
-    wrap.innerHTML = '';
-    return;
+  PLACEMENTS.forEach((p) => {
+    const wrap = $(ZONE_SEL[p.id]);
+    if (!wrap) return;
+    const items = messages
+      .map((msg, i) => ({ msg, i }))
+      .filter((x) => x.msg.placement === p.id);
+
+    if (!items.length) {
+      wrap.innerHTML =
+        editable && p.id === 'top' && messages.length === 0
+          ? `<div class="message-group is-empty">
+               <div class="msg-body muted">לחצו ״הוסף הודעה״ להוספת הודעה. אפשר לבחור מיקום (למעלה / באמצע / למטה) ולשים כמה הודעות יחד תחת מסגרת אחת.</div>
+             </div>`
+          : '';
+      return;
+    }
+
+    const inner = items
+      .map(({ msg, i }) => msgItemHtml(msg, i, editable))
+      .join('<div class="msg-sep" aria-hidden="true">• • •</div>');
+    wrap.innerHTML = `<div class="message-group">${inner}</div>`;
+  });
+}
+
+/** קורא את מצב ההודעות מה-DOM (טקסט + כותרת) תוך שמירה על סדר ומיקום */
+function collectMessageEdits() {
+  const msgs = getMessages(state.model).map((m) => ({ ...m }));
+  $$('[data-msg-body]').forEach((el) => {
+    const i = Number(el.dataset.msgBody);
+    if (msgs[i]) msgs[i].text = el.innerText.replace(/\u00a0/g, ' ').trim();
+  });
+  $$('[data-msg-title]').forEach((el) => {
+    const i = Number(el.dataset.msgTitle);
+    if (msgs[i]) msgs[i].title = el.textContent.replace(/\u00a0/g, ' ').trim();
+  });
+  return msgs;
+}
+
+/** אינדקס השכן הקרוב באותו מיקום בכיוון dir (‎-1 מעלה / ‎+1 מטה) */
+function neighborSamePlacement(msgs, i, dir) {
+  const placement = msgs[i]?.placement;
+  for (let j = i + dir; j >= 0 && j < msgs.length; j += dir) {
+    if (msgs[j].placement === placement) return j;
   }
-
-  const cards = messages
-    .map(
-      (msg, i) => `
-      <aside class="important-message" data-msg-index="${i}">
-        <div class="msg-head">
-          <div class="msg-badge">הודעה חשובה${messages.length > 1 ? ` ${i + 1}` : ''}</div>
-          ${
-            editable
-              ? `<button type="button" class="msg-remove" data-remove-msg="${i}" aria-label="מחיקת הודעה">×</button>`
-              : ''
-          }
-        </div>
-        <div class="msg-body ${editable ? 'editable' : ''}" data-msg-body="${i}"
-             ${editable ? 'contenteditable="true"' : ''}>${escapeHtml(msg).replace(/\n/g, '<br>')}</div>
-      </aside>`,
-    )
-    .join('');
-
-  const emptyHint =
-    editable && !messages.length
-      ? `<aside class="important-message is-empty">
-           <div class="msg-badge">הודעה חשובה</div>
-           <div class="msg-body muted">לחצו ״הוסף הודעה״ או בחרו תבנית מהרשימה</div>
-         </aside>`
-      : '';
-
-  wrap.innerHTML = cards + emptyHint;
+  return null;
 }
 
 function renderBulletin(model) {
@@ -261,6 +348,66 @@ function renderBulletin(model) {
     'has-overrides',
     Boolean(model._overrides && Object.keys(model._overrides.times || {}).length),
   );
+
+  scheduleFit();
+}
+
+const FIT_MIN = 0.6;
+
+/**
+ * מקטין אוטומטית את גודל הטקסט (משתנה --u) כדי שכל התוכן ייכנס לעמוד A4 יחיד
+ * בהדפסה/תצוגה, בלי לדחוס מעבר למינימום קריא.
+ */
+function fitSheet() {
+  const sheet = $('.sheet');
+  if (!sheet) return;
+
+  // במובייל או במצב צילום-טלפון הגובה גמיש — אין צורך בהקטנה
+  if (
+    window.matchMedia('(max-width: 820px)').matches ||
+    document.body.classList.contains('capture-phone')
+  ) {
+    sheet.style.setProperty('--u', '1');
+    return;
+  }
+
+  sheet.style.setProperty('--u', '1');
+  const target = sheet.clientHeight;
+  if (!target) return;
+
+  const prev = {
+    height: sheet.style.height,
+    maxHeight: sheet.style.maxHeight,
+    overflow: sheet.style.overflow,
+  };
+
+  const measureNatural = () => {
+    sheet.style.height = 'auto';
+    sheet.style.maxHeight = 'none';
+    sheet.style.overflow = 'visible';
+    const h = sheet.scrollHeight;
+    sheet.style.height = prev.height;
+    sheet.style.maxHeight = prev.maxHeight;
+    sheet.style.overflow = prev.overflow;
+    return h;
+  };
+
+  let u = 1;
+  for (let iter = 0; iter < 8; iter++) {
+    const natural = measureNatural();
+    if (natural <= target + 1) break;
+    const next = Math.max(FIT_MIN, u * (target / natural));
+    sheet.style.setProperty('--u', next.toFixed(3));
+    if (Math.abs(next - u) < 0.004 || next <= FIT_MIN) {
+      u = next;
+      break;
+    }
+    u = next;
+  }
+}
+
+function scheduleFit() {
+  requestAnimationFrame(() => requestAnimationFrame(fitSheet));
 }
 
 function bindRowLabels(rootSel, map) {
@@ -270,30 +417,8 @@ function bindRowLabels(rootSel, map) {
   }
 }
 
-function collectEditsFromDom() {
-  if (!state.model) return;
-  const times = { ...(state.model._overrides?.times || {}) };
-  $$('.row-time[data-key]').forEach((el) => {
-    const key = el.dataset.key;
-    const val = el.textContent.trim();
-    const autoVal = state.autoModel?.times?.[key];
-    if (autoVal != null && val !== autoVal) times[key] = val;
-    else if (times[key] && val === autoVal) delete times[key];
-    else if (autoVal == null) times[key] = val;
-  });
-
-  const importantMessages = $$('[data-msg-body]')
-    .map((el) => el.innerText.replace(/\u00a0/g, ' ').trim())
-    .filter(Boolean);
-
-  const labels = { ...state.model.labels };
-  const far = $('#farbrengen-label');
-  const pir = $('#pirkei-label');
-  const mar = $('#marot-label');
-  if (far) labels.farbrengen = far.textContent.trim();
-  if (pir) labels.pirkeiAvot = pir.textContent.trim();
-  if (mar) labels.marotKodesh = mar.textContent.trim();
-
+/** קורא את מצב השיעורים הקבועים מה-DOM תוך שמירה על סדר */
+function collectLessonsFromDom() {
   const fixedLessons = structuredClone(state.model.fixedLessons || []);
   $$('[data-lesson-day]').forEach((el) => {
     const di = Number(el.dataset.lessonDay);
@@ -307,21 +432,60 @@ function collectEditsFromDom() {
       fixedLessons[d].items[i][field] = el.textContent.trim();
     }
   });
+  return fixedLessons;
+}
 
-  const overrides = {
+/** אוסף את כל העריכות הפעילות מה-DOM לאובייקט overrides (ללא שמירה) */
+function readOverridesFromDom() {
+  const times = { ...(state.model._overrides?.times || {}) };
+  $$('.row-time[data-key]').forEach((el) => {
+    const key = el.dataset.key;
+    const val = el.textContent.trim();
+    const autoVal = state.autoModel?.times?.[key];
+    if (autoVal != null && val !== autoVal) times[key] = val;
+    else if (times[key] && val === autoVal) delete times[key];
+    else if (autoVal == null) times[key] = val;
+  });
+
+  const labels = { ...state.model.labels };
+  const far = $('#farbrengen-label');
+  const pir = $('#pirkei-label');
+  const mar = $('#marot-label');
+  if (far) labels.farbrengen = far.textContent.trim();
+  if (pir) labels.pirkeiAvot = pir.textContent.trim();
+  if (mar) labels.marotKodesh = mar.textContent.trim();
+
+  return {
     times,
-    importantMessages,
+    importantMessages: collectMessageEdits(),
     labels,
-    fixedLessons,
+    fixedLessons: collectLessonsFromDom(),
   };
+}
 
-  // drop empty times
-  if (!Object.keys(times).length) delete overrides.times;
-
+/** שומר overrides ל-localStorage, מחשב מודל מחדש ומרנדר */
+function storeOverrides(overrides) {
+  overrides.importantMessages = (overrides.importantMessages || []).filter((m) =>
+    String(m?.text || '').trim(),
+  );
+  if (overrides.times && !Object.keys(overrides.times).length) delete overrides.times;
   setWeekOverrides(state.model.friday, overrides);
   state.model = applyOverrides(state.autoModel, overrides);
   saveHistoryEntry(state.model);
   renderBulletin(state.model);
+}
+
+/** קורא את מצב ה-DOM, מבצע שינוי (mutate) ושומר מיד — לפעולות כפתורים */
+function persistOverridesWith(mutate) {
+  if (!state.model) return;
+  const overrides = readOverridesFromDom();
+  mutate(overrides);
+  storeOverrides(overrides);
+}
+
+function collectEditsFromDom() {
+  if (!state.model) return;
+  storeOverrides(readOverridesFromDom());
   showToast('נשמר');
 }
 
@@ -343,6 +507,7 @@ async function loadWeek() {
     saveHistoryEntry(state.model);
     populateHistoryList();
     populateTemplates();
+    document.fonts?.ready?.then?.(fitSheet).catch?.(() => {});
   } catch (err) {
     console.error(err);
     setHtml(
@@ -553,30 +718,26 @@ function applyPublicViewMode() {
   }
 }
 
-function persistMessages(messages) {
-  const overrides = getWeekOverrides(state.model.friday) || {};
-  overrides.importantMessages = messages;
-  delete overrides.importantMessage;
-  setWeekOverrides(state.model.friday, overrides);
-  state.model = applyOverrides(state.autoModel, overrides);
-  saveHistoryEntry(state.model);
-  renderBulletin(state.model);
-}
-
-function addMessage(text = '') {
+function addMessage(text = '', placement = 'top') {
   if (!state.editMode) {
     alert('יש להיכנס למצב עריכה כדי להוסיף הודעה');
     return;
   }
-  const messages = getMessages(state.model);
-  messages.push(text || 'הודעה חדשה…');
-  persistMessages(messages);
+  const isPlaceholder = text === '' || text === 'הודעה חדשה…';
+  persistOverridesWith((ov) => {
+    ov.importantMessages.push({
+      text: text || 'הודעה חדשה…',
+      placement: MESSAGE_PLACEMENTS.includes(placement) ? placement : 'top',
+      title: '',
+    });
+  });
   showToast('הודעה נוספה');
   // פוקוס להודעה האחרונה
   requestAnimationFrame(() => {
-    const el = $(`[data-msg-body="${messages.length - 1}"]`);
+    const list = getMessages(state.model);
+    const el = $(`[data-msg-body="${list.length - 1}"]`);
     el?.focus();
-    if (el && (text === '' || text === 'הודעה חדשה…')) {
+    if (el && isPlaceholder) {
       const range = document.createRange();
       range.selectNodeContents(el);
       const sel = window.getSelection();
@@ -584,6 +745,86 @@ function addMessage(text = '') {
       sel?.addRange(range);
     }
   });
+}
+
+/** מטפל בלחיצות על כפתורי עריכה של הודעות ושיעורים (דלגציה) */
+function onEditActionClick(e) {
+  if (!state.editMode) return;
+  const btn = e.target.closest('button');
+  if (!btn) return;
+
+  // מחיקת הודעה
+  if (btn.hasAttribute('data-remove-msg')) {
+    const i = Number(btn.getAttribute('data-remove-msg'));
+    persistOverridesWith((ov) => ov.importantMessages.splice(i, 1));
+    showToast('הודעה נמחקה');
+    return;
+  }
+  // שינוי מיקום
+  if (btn.hasAttribute('data-place')) {
+    const i = Number(btn.getAttribute('data-msg'));
+    const place = btn.getAttribute('data-place');
+    persistOverridesWith((ov) => {
+      if (ov.importantMessages[i]) ov.importantMessages[i].placement = place;
+    });
+    return;
+  }
+  // הזזה מעלה/מטה בתוך אותו מיקום
+  if (btn.hasAttribute('data-msg-up') || btn.hasAttribute('data-msg-down')) {
+    const up = btn.hasAttribute('data-msg-up');
+    const i = Number(btn.getAttribute(up ? 'data-msg-up' : 'data-msg-down'));
+    persistOverridesWith((ov) => {
+      const j = neighborSamePlacement(ov.importantMessages, i, up ? -1 : 1);
+      if (j != null) {
+        [ov.importantMessages[i], ov.importantMessages[j]] = [
+          ov.importantMessages[j],
+          ov.importantMessages[i],
+        ];
+      }
+    });
+    return;
+  }
+  // הוספה/הסרה של כותרת
+  if (btn.hasAttribute('data-msg-title-toggle')) {
+    const i = Number(btn.getAttribute('data-msg-title-toggle'));
+    persistOverridesWith((ov) => {
+      const m = ov.importantMessages[i];
+      if (m) m.title = m.title ? '' : 'הודעה חשובה';
+    });
+    return;
+  }
+  // שיעורים: הוספת קטגוריה חדשה
+  if (btn.hasAttribute('data-lesson-add-block')) {
+    persistOverridesWith((ov) => {
+      ov.fixedLessons = ov.fixedLessons || [];
+      ov.fixedLessons.push({ day: 0, dayName: 'שיעור / תפילה', items: [{ time: '', label: 'שם השיעור' }] });
+    });
+    showToast('נוספה קטגוריה');
+    return;
+  }
+  // שיעורים: מחיקת קטגוריה
+  if (btn.hasAttribute('data-lesson-del-block')) {
+    const di = Number(btn.getAttribute('data-lesson-del-block'));
+    persistOverridesWith((ov) => ov.fixedLessons?.splice(di, 1));
+    return;
+  }
+  // שיעורים: הוספת שורה
+  if (btn.hasAttribute('data-lesson-add-item')) {
+    const di = Number(btn.getAttribute('data-lesson-add-item'));
+    persistOverridesWith((ov) => {
+      if (ov.fixedLessons?.[di]) {
+        ov.fixedLessons[di].items = ov.fixedLessons[di].items || [];
+        ov.fixedLessons[di].items.push({ time: '', label: 'שם השיעור' });
+      }
+    });
+    return;
+  }
+  // שיעורים: מחיקת שורה
+  if (btn.hasAttribute('data-lesson-del-item')) {
+    const [di, ii] = btn.getAttribute('data-lesson-del-item').split('-').map(Number);
+    persistOverridesWith((ov) => ov.fixedLessons?.[di]?.items?.splice(ii, 1));
+    return;
+  }
 }
 
 function bindUi() {
@@ -617,14 +858,7 @@ function bindUi() {
 
   $('#btn-add-message')?.addEventListener('click', () => addMessage(''));
 
-  $('#important-messages')?.addEventListener('click', (e) => {
-    const btn = e.target.closest('[data-remove-msg]');
-    if (!btn || !state.editMode) return;
-    const idx = Number(btn.dataset.removeMsg);
-    const messages = getMessages(state.model).filter((_, i) => i !== idx);
-    persistMessages(messages);
-    showToast('הודעה נמחקה');
-  });
+  $('#app')?.addEventListener('click', onEditActionClick);
 
   $('#btn-history')?.addEventListener('click', () => {
     const panel = $('#history-panel');
@@ -675,6 +909,13 @@ function bindUi() {
   $('#btn-close-history')?.addEventListener('click', () => {
     setHidden('#history-panel', true);
   });
+
+  let resizeT;
+  window.addEventListener('resize', () => {
+    clearTimeout(resizeT);
+    resizeT = setTimeout(fitSheet, 150);
+  });
+  window.addEventListener('beforeprint', fitSheet);
 }
 
 document.addEventListener('DOMContentLoaded', () => {

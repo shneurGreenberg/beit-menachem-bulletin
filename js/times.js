@@ -377,13 +377,36 @@ function formatHebrewDateLabel(hdate) {
   return `${day} ${month} ${m[3]}`;
 }
 
+/** מיקומים אפשריים להנחת הודעה בלוח */
+export const MESSAGE_PLACEMENTS = ['top', 'mid', 'bottom'];
+
+/**
+ * מחזיר מערך אחיד של הודעות כאובייקטים { text, placement, title }.
+ * תומך לאחור גם במחרוזות בודדות וגם ב-importantMessage הישן.
+ */
 export function normalizeMessages(modelOrOverrides) {
+  let arr = [];
   if (Array.isArray(modelOrOverrides?.importantMessages)) {
-    return modelOrOverrides.importantMessages.filter((m) => String(m || '').trim());
+    arr = modelOrOverrides.importantMessages;
+  } else if (modelOrOverrides?.importantMessage) {
+    arr = [modelOrOverrides.importantMessage];
   }
-  const legacy = modelOrOverrides?.importantMessage;
-  if (legacy && String(legacy).trim()) return [String(legacy).trim()];
-  return [];
+  return arr
+    .map((m) => {
+      if (typeof m === 'string') {
+        const text = m.replace(/\u00a0/g, ' ').trim();
+        return text ? { text, placement: 'top', title: '' } : null;
+      }
+      if (m && typeof m === 'object') {
+        const text = String(m.text ?? '').replace(/\u00a0/g, ' ').trim();
+        if (!text) return null;
+        const placement = MESSAGE_PLACEMENTS.includes(m.placement) ? m.placement : 'top';
+        const title = String(m.title ?? '').replace(/\u00a0/g, ' ').trim();
+        return { text, placement, title };
+      }
+      return null;
+    })
+    .filter(Boolean);
 }
 
 export function applyOverrides(model, overrides) {
