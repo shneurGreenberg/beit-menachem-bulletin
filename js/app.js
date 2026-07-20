@@ -352,11 +352,12 @@ function renderBulletin(model) {
   scheduleFit();
 }
 
-const FIT_MIN = 0.6;
+const FIT_MIN = 0.55;
 
 /**
  * מקטין אוטומטית את גודל הטקסט (משתנה --u) כדי שכל התוכן ייכנס לעמוד A4 יחיד
- * בהדפסה/תצוגה, בלי לדחוס מעבר למינימום קריא.
+ * בהדפסה, בלי לדחוס מעבר למינימום קריא. המדידה מתבצעת ללא כלי העריכה
+ * (שלא מודפסים), כך שההתאמה משקפת את הפלט המודפס בפועל.
  */
 function fitSheet() {
   const sheet = $('.sheet');
@@ -371,39 +372,19 @@ function fitSheet() {
     return;
   }
 
+  // מסתירים את כלי העריכה בזמן המדידה כדי למדוד את גובה התוכן המודפס בלבד
+  document.body.classList.add('fit-measure');
   sheet.style.setProperty('--u', '1');
-  const target = sheet.clientHeight;
-  if (!target) return;
-
-  const prev = {
-    height: sheet.style.height,
-    maxHeight: sheet.style.maxHeight,
-    overflow: sheet.style.overflow,
-  };
-
-  const measureNatural = () => {
-    sheet.style.height = 'auto';
-    sheet.style.maxHeight = 'none';
-    sheet.style.overflow = 'visible';
-    const h = sheet.scrollHeight;
-    sheet.style.height = prev.height;
-    sheet.style.maxHeight = prev.maxHeight;
-    sheet.style.overflow = prev.overflow;
-    return h;
-  };
 
   let u = 1;
-  for (let iter = 0; iter < 8; iter++) {
-    const natural = measureNatural();
-    if (natural <= target + 1) break;
-    const next = Math.max(FIT_MIN, u * (target / natural));
-    sheet.style.setProperty('--u', next.toFixed(3));
-    if (Math.abs(next - u) < 0.004 || next <= FIT_MIN) {
-      u = next;
-      break;
-    }
-    u = next;
+  let guard = 0;
+  while (sheet.scrollHeight > sheet.clientHeight + 1 && u > FIT_MIN && guard < 60) {
+    u = Math.max(FIT_MIN, Math.round((u - 0.02) * 1000) / 1000);
+    sheet.style.setProperty('--u', u.toFixed(3));
+    guard++;
   }
+
+  document.body.classList.remove('fit-measure');
 }
 
 function scheduleFit() {

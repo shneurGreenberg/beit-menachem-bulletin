@@ -270,6 +270,16 @@ body {
   line-height: 1.25;
 }
 
+/* בזמן מדידת התאמה לעמוד מסתירים את כלי העריכה (הם לא נכללים בהדפסה) */
+body.fit-measure .msg-tools,
+body.fit-measure .lesson-head-tools,
+body.fit-measure .lesson-del,
+body.fit-measure .lesson-add,
+body.fit-measure .lesson-add-block,
+body.fit-measure .msg-remove {
+  display: none !important;
+}
+
 .board {
   border: 2px solid #333;
   padding: calc(1.6mm * var(--u));
