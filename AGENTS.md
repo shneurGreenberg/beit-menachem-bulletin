@@ -9,7 +9,8 @@ A single static website (no backend, no build step, no package manager) that gen
 - Serve the repo root as static files, then open the printed URL. Any static server works, e.g. `python3 -m http.server 8000` or `npx --yes serve .` (README default). Opening via `file://` will NOT work — the app uses ES modules + `fetch`, which require an HTTP origin.
 - There are no dependencies to install and no lockfile/`package.json`. There is no build, lint, or test tooling configured in this repo.
 - Live GitHub Pages URL: `https://shneurgreenberg.github.io/beit-menachem-bulletin/`. The bare host `https://shneurgreenberg.github.io/` is a **different** repo (`shneurGreenberg.github.io`) with a broken 2022 Flutter app; fix it with `node scripts/fix-user-pages.mjs` (needs write access to that repo) or by copying `user-site/` there.
-- Zmanim source of truth: `data/zmanim-table.json` (Admor HaZaken / Beit Shemesh, year תשפ״ו), generated from `data/beit-shemesh-5786.xlsx` via `node scripts/seed-zmanim-table.mjs`.
+- Zmanim source of truth for sunsets: `data/zmanim-table.json` (Admor HaZaken / Beit Shemesh, year תשפ״ו), generated from `data/beit-shemesh-5786.xlsx` via `node scripts/seed-zmanim-table.mjs`.
+- Candle lighting + Shabbat end always come from Hebcal (internet), never from the table. Prayer times are rounded to 5-minute slots; women’s Tanya is always 45 minutes before Mincha; children’s story always 30 minutes before Mincha; Shabbat Arvit sits between Shabbat-end and tzeit.
 
 ### Live data / egress
 - On load the app fetches Shabbat times live from the Hebcal API (`https://www.hebcal.com/...`), so outbound HTTPS egress is required for real times. If Hebcal is unreachable it falls back to the cached `data/week.json`, so the page still renders.

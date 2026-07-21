@@ -8,28 +8,62 @@ function pad(n) {
   return String(n).padStart(2, '0');
 }
 
+const TZ = () => CONFIG.location.tzid || 'Asia/Jerusalem';
+
+/** מחלץ שעה:דקה בזמן ישראל מ־Date (לא לפי אזור הזמן של הדפדפן) */
 export function formatTime(date) {
   if (!(date instanceof Date) || Number.isNaN(date.getTime())) return '--:--';
-  return `${pad(date.getHours())}:${pad(date.getMinutes())}`;
+  const parts = new Intl.DateTimeFormat('en-GB', {
+    timeZone: TZ(),
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  }).formatToParts(date);
+  const hour = parts.find((p) => p.type === 'hour')?.value ?? '00';
+  const minute = parts.find((p) => p.type === 'minute')?.value ?? '00';
+  // en-GB sometimes yields "24" for midnight — מנרמלים
+  const hNum = Number(hour) % 24;
+  return `${pad(hNum)}:${minute}`;
 }
 
+function israelYmd(baseDate) {
+  if (typeof baseDate === 'string' && /^\d{4}-\d{2}-\d{2}/.test(baseDate)) {
+    return baseDate.slice(0, 10);
+  }
+  return new Intl.DateTimeFormat('en-CA', {
+    timeZone: TZ(),
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(baseDate instanceof Date ? baseDate : new Date(baseDate));
+}
+
+/** בונה Date שמייצג שעה מקומית בישראל ביום הנתון */
 export function parseTimeOnDate(baseDate, hhmm) {
-  const [h, m] = hhmm.split(':').map(Number);
-  const d = new Date(baseDate);
-  d.setHours(h, m, 0, 0);
-  return d;
+  const [h, m] = String(hhmm).split(':').map(Number);
+  const ymd = israelYmd(baseDate);
+  let t = Date.parse(`${ymd}T${pad(h)}:${pad(m)}:00Z`);
+  for (let i = 0; i < 4; i++) {
+    const shown = formatTime(new Date(t));
+    const [sh, sm] = shown.split(':').map(Number);
+    const delta = h * 60 + m - (sh * 60 + sm);
+    if (delta === 0) break;
+    t += delta * 60_000;
+  }
+  return new Date(t);
 }
 
 export function addMinutes(date, minutes) {
   return new Date(date.getTime() + minutes * 60_000);
 }
 
-/** עיגול לשעה "נורמלית" לפי הסלוטים בהגדרות */
+/** עיגול לשעה "נורמלית" לפי הסלוטים בהגדרות (לפי שעון ישראל) */
 export function roundToNiceSlot(date, slots = CONFIG.rounding.slots) {
-  const total = date.getHours() * 60 + date.getMinutes();
-  let best = slots[0];
+  const [hh, mm] = formatTime(date).split(':').map(Number);
+  const total = hh * 60 + mm;
+  let best = total;
   let bestDiff = Infinity;
-  for (let hour = date.getHours() - 1; hour <= date.getHours() + 1; hour++) {
+  for (let hour = hh - 1; hour <= hh + 1; hour++) {
     for (const slot of slots) {
       const candidate = hour * 60 + slot;
       const diff = Math.abs(candidate - total);
@@ -39,31 +73,62 @@ export function roundToNiceSlot(date, slots = CONFIG.rounding.slots) {
       }
     }
   }
-  const out = new Date(date);
-  out.setHours(Math.floor(best / 60), best % 60, 0, 0);
-  return out;
+  const mins = ((best % (24 * 60)) + 24 * 60) % (24 * 60);
+  return parseTimeOnDate(date, `${Math.floor(mins / 60)}:${pad(mins % 60)}`);
+}
+
+/**
+ * ערבית בשבת — תמיד בין יציאת השבת (Hebcal) לצאת הכוכבים (טבלה),
+ * מעוגלת לשעה "עגולה".
+ */
+export function arvitBetween(shabbatEndDate, tzeitDate) {
+  if (!(shabbatEndDate instanceof Date) || Number.isNaN(shabbatEndDate.getTime())) {
+    return tzeitDate;
+  }
+  if (!(tzeitDate instanceof Date) || Number.isNaN(tzeitDate.getTime())) {
+    return shabbatEndDate;
+  }
+  const lo = Math.min(shabbatEndDate.getTime(), tzeitDate.getTime());
+  const hi = Math.max(shabbatEndDate.getTime(), tzeitDate.getTime());
+  if (hi - lo < 60_000) {
+    return roundToNiceSlot(new Date(lo + 5 * 60_000));
+  }
+  let mid = new Date((lo + hi) / 2);
+  if (CONFIG.rounding.shabbatArvit) {
+    const rounded = roundToNiceSlot(mid);
+    const rt = rounded.getTime();
+    if (rt >= lo && rt <= hi) return rounded;
+  }
+  return mid;
 }
 
 function isoDate(d) {
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+  return israelYmd(d);
 }
 
-/** יום שישי של שבת הקרובה/הנוכחית */
+/** יום שישי של שבת הקרובה/הנוכחית — לפי לוח ישראל */
 export function getCurrentFriday(ref = new Date()) {
-  const d = new Date(ref);
-  d.setHours(12, 0, 0, 0);
-  const day = d.getDay(); // 0=ראשון ... 5=שישי 6=שבת
-  if (day === 6) {
-    d.setDate(d.getDate() - 1);
-  } else if (day !== 5) {
-    const delta = (5 - day + 7) % 7;
-    d.setDate(d.getDate() + delta);
-  }
-  return d;
+  const ymd = israelYmd(ref);
+  const [y, m, d] = ymd.split('-').map(Number);
+  const noonIl = parseTimeOnDate(ymd, '12:00');
+  const weekdayMap = { Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 };
+  const wd =
+    weekdayMap[
+      new Intl.DateTimeFormat('en-US', { timeZone: TZ(), weekday: 'short' }).format(noonIl)
+    ] ?? 0;
+
+  let delta = 0;
+  if (wd === 6) delta = -1;
+  else if (wd !== 5) delta = (5 - wd + 7) % 7;
+  if (delta === 0) return noonIl;
+
+  const base = new Date(`${y}-${pad(m)}-${pad(d)}T12:00:00Z`);
+  base.setUTCDate(base.getUTCDate() + delta);
+  return parseTimeOnDate(israelYmd(base), '12:00');
 }
 
 export function getSaturday(friday) {
-  return addMinutes(new Date(friday.getFullYear(), friday.getMonth(), friday.getDate(), 12), 24 * 60);
+  return addMinutes(parseTimeOnDate(friday, '12:00'), 24 * 60);
 }
 
 async function fetchJson(url) {
@@ -80,10 +145,11 @@ async function fetchZmanim(date) {
 
 async function fetchShabbat(friday) {
   const { geonameid, candleLightingMinutes } = CONFIG.location;
+  const [gy, gm, gd] = isoDate(friday).split('-').map(Number);
   const url =
     `${HEBCAL_SHABBAT}?cfg=json&geonameid=${geonameid}` +
     `&M=on&b=${candleLightingMinutes}&lg=he` +
-    `&gy=${friday.getFullYear()}&gm=${friday.getMonth() + 1}&gd=${friday.getDate()}`;
+    `&gy=${gy}&gm=${gm}&gd=${gd}`;
   return fetchJson(url);
 }
 
@@ -206,19 +272,29 @@ function assembleModel({
   );
 
   const o = CONFIG.offsets;
-  const fridayMincha = addMinutes(sunsetFri, -o.fridayMinchaBeforeSunset);
+  let fridayMincha = addMinutes(sunsetFri, -o.fridayMinchaBeforeSunset);
   const issurMelacha = addMinutes(sunsetFri, -o.issurMelachaBeforeSunset);
-  const shabbatMincha = addMinutes(sunsetSat, -o.shabbatMinchaBeforeSunset);
-  const shabbatArvit = addMinutes(
-    havdalah || addMinutes(sunsetSat, CONFIG.location.havdalahMinutes),
-    -o.shabbatArvitBeforeHavdalah,
+  let shabbatMincha = addMinutes(sunsetSat, -o.shabbatMinchaBeforeSunset);
+  if (CONFIG.rounding.fridayMincha) fridayMincha = roundToNiceSlot(fridayMincha);
+  if (CONFIG.rounding.shabbatMincha) shabbatMincha = roundToNiceSlot(shabbatMincha);
+
+  const havdalahDate =
+    havdalah || addMinutes(sunsetSat, CONFIG.location.havdalahMinutes);
+  // ללא טבלה: צאת משוער מ-Hebcal dusk/tzeit אם קיים
+  const tzeitSatGuess = new Date(
+    satZmanim.times?.tzaisBaalHatanya ||
+      satZmanim.times?.tzeit42min ||
+      satZmanim.times?.dusk ||
+      havdalahDate,
   );
+  const shabbatArvit = arvitBetween(havdalahDate, tzeitSatGuess);
 
   let weekdayMincha = addMinutes(sunsetWeek, -o.weekdayMinchaBeforeSunset);
   let weekdayArvit = tzeitWeek;
   if (CONFIG.rounding.weekdayMincha) weekdayMincha = roundToNiceSlot(weekdayMincha);
   if (CONFIG.rounding.weekdayArvit) weekdayArvit = roundToNiceSlot(weekdayArvit);
 
+  // תניא / ילדים — תמיד ביחס למנחה (אחרי עיגול המנחה)
   const tanya = addMinutes(shabbatMincha, -o.tanyaWomenBeforeMincha);
   const children = addMinutes(shabbatMincha, -o.childrenStoryBeforeMincha);
   const specialDays = [
@@ -325,7 +401,7 @@ export function defaultActivities() {
       { id: 'tanyaWomen', type: 'timed', timeKey: 'tanyaWomen', label: 'שיעור תניא לנשים' },
       { id: 'childrenStory', type: 'timed', timeKey: 'childrenStory', label: 'סיפור לילדים' },
     ],
-    afternoonMid: [{ id: 'pirkeiAvot', type: 'note', label: 'פרקי אבות' }],
+    afternoonMid: [{ id: 'pirkeiAvot', type: 'note', label: 'פרקי אבות פרק ד׳' }],
     afternoonAfter: [{ id: 'marotKodesh', type: 'note', label: 'מראות קודש' }],
     weekdayBefore: [
       {
@@ -394,11 +470,13 @@ export async function loadZmanimTable() {
 }
 
 /**
- * דורס את זמני העלון לפי טבלת הזמנים (שיטת אדמו"ר הזקן):
- * - "שקיעה" בעלון = שקיעה אמיתית מהטבלה
- * - "יציאת השבת" = צאת הכוכבים מהטבלה
- * - התפילות מחושבות מזמני השמש (היסטים ביחס לשקיעה/צאת)
- * - שיעור לילדים/תניא לנשים = ברירת מחדל מחושבת, אך נקבעים ידנית (לפי החלטה)
+ * דורס זמנים לפי טבלת אדמו"ר הזקן — אבל:
+ * - הדלקת נרות + יציאת השבת נשארים מ־Hebcal (אינטרנט) — לא מהטבלה
+ * - שקיעה בעלון = שקיעה אמיתית מהטבלה
+ * - איסור מלאכה = שקיעה נראית מהטבלה (אם קיימת)
+ * - תפילות מעוגלות לשעות עגולות (:00/:05/:10…)
+ * - תניא לנשים = תמיד 45 דק׳ לפני מנחה; ילדים = תמיד 30 דק׳ לפני מנחה
+ * - ערבית = בין יציאת השבת לצאת הכוכבים
  */
 export function applyZmanimTable(model, table) {
   const days = table?.days;
@@ -415,27 +493,34 @@ export function applyZmanimTable(model, table) {
   const sunsetFri = parseTimeOnDate(friDate, fri.shkiaAmitit);
   const sunsetSat = parseTimeOnDate(satDate, sat.shkiaAmitit);
 
-  // שקיעה בעלון = שקיעה אמיתית
+  // שקיעה בעלון = שקיעה אמיתית מהטבלה
   t.sunsetFriday = fri.shkiaAmitit;
   t.sunsetShabbat = sat.shkiaAmitit;
 
-  // תפילות/הדלקה — מזמני השמש (היסטים)
-  t.candleLighting = formatTime(addMinutes(sunsetFri, -CONFIG.location.candleLightingMinutes));
-  t.fridayMincha = formatTime(addMinutes(sunsetFri, -o.fridayMinchaBeforeSunset));
-  t.issurMelacha = formatTime(addMinutes(sunsetFri, -o.issurMelachaBeforeSunset));
-  const shabbatMinchaD = addMinutes(sunsetSat, -o.shabbatMinchaBeforeSunset);
+  // איסור מלאכה = שקיעה נראית (מהטבלה) או היסט משקיעה אמיתית
+  t.issurMelacha = fri.shkiaNireit
+    ? fri.shkiaNireit
+    : formatTime(addMinutes(sunsetFri, -o.issurMelachaBeforeSunset));
+
+  // מנחה שישי / שבת — מהשקיעה, ואז עיגול
+  let fridayMincha = addMinutes(sunsetFri, -o.fridayMinchaBeforeSunset);
+  let shabbatMinchaD = addMinutes(sunsetSat, -o.shabbatMinchaBeforeSunset);
+  if (CONFIG.rounding.fridayMincha) fridayMincha = roundToNiceSlot(fridayMincha);
+  if (CONFIG.rounding.shabbatMincha) shabbatMinchaD = roundToNiceSlot(shabbatMinchaD);
+  t.fridayMincha = formatTime(fridayMincha);
   t.shabbatMincha = formatTime(shabbatMinchaD);
 
-  // יציאת השבת = צאת הכוכבים (המדויק), וערבית ביחס לצאת
-  if (sat.tzeitHakochavim) {
-    const tzeitSat = parseTimeOnDate(satDate, sat.tzeitHakochavim);
-    t.shabbatEnd = sat.tzeitHakochavim;
-    t.shabbatArvit = formatTime(addMinutes(tzeitSat, -o.shabbatArvitBeforeHavdalah));
-  }
-
-  // שיעור לילדים/תניא לנשים — ברירת מחדל, אך לפי החלטה (ניתן לעריכה)
+  // תניא / ילדים — תמיד ביחס למנחה המעוגלת
   t.tanyaWomen = formatTime(addMinutes(shabbatMinchaD, -o.tanyaWomenBeforeMincha));
   t.childrenStory = formatTime(addMinutes(shabbatMinchaD, -o.childrenStoryBeforeMincha));
+
+  // ערבית בין יציאת שבת (Hebcal, כבר ב־model.times.shabbatEnd) לצאת הכוכבים (טבלה)
+  // לא דורסים candleLighting / shabbatEnd מהטבלה!
+  if (sat.tzeitHakochavim && t.shabbatEnd && t.shabbatEnd !== '--:--') {
+    const tzeitSat = parseTimeOnDate(satDate, sat.tzeitHakochavim);
+    const endSat = parseTimeOnDate(satDate, t.shabbatEnd);
+    t.shabbatArvit = formatTime(arvitBetween(endSat, tzeitSat));
+  }
 
   // ימי חול — לפי יום ראשון שאחרי השבת אם קיים בטבלה
   const sunIso = isoDate(addMinutes(satDate, 24 * 60));
@@ -456,14 +541,59 @@ export function applyZmanimTable(model, table) {
 }
 
 /**
- * בונה מודל מלא של עלון השבוע. אם קיימת טבלת זמנים (אדמו"ר הזקן) —
- * הזמנים נגזרים ממנה; אחרת מ-Hebcal (בית שמש).
+ * תוכן שבועי משותף (הודעות / שיעורים) מ־data/week-content.json —
+ * כדי שכל המבקרים יראו את עדכוני השבוע (לא רק localStorage).
+ */
+async function loadWeekContent(fridayIso) {
+  try {
+    const res = await fetch('./data/week-content.json');
+    if (!res.ok) return null;
+    const data = await res.json();
+    if (data?.friday && fridayIso && data.friday !== fridayIso) return null;
+    return data;
+  } catch {
+    return null;
+  }
+}
+
+function applyWeekContent(model, content) {
+  if (!content || !model) return model;
+  const next = structuredClone(model);
+  if (content.labels) {
+    next.labels = { ...next.labels, ...content.labels };
+    next.activities = normalizeActivities(next.activities);
+    const sync = [
+      ['morningAfter', 'farbrengen', 'farbrengen'],
+      ['afternoonMid', 'pirkeiAvot', 'pirkeiAvot'],
+      ['afternoonAfter', 'marotKodesh', 'marotKodesh'],
+    ];
+    for (const [zone, id, labelKey] of sync) {
+      if (content.labels[labelKey] == null) continue;
+      const item = next.activities[zone]?.find((a) => a.id === id);
+      if (item) item.label = content.labels[labelKey];
+    }
+  }
+  if (Array.isArray(content.importantMessages) && content.importantMessages.length) {
+    next.importantMessages = normalizeMessages({
+      importantMessages: content.importantMessages,
+    });
+  }
+  if (Array.isArray(content.fixedLessons) && content.fixedLessons.length) {
+    next.fixedLessons = content.fixedLessons;
+  }
+  return next;
+}
+
+/**
+ * בונה מודל מלא של עלון השבוע.
+ * הדלקה + יציאת שבת מ־Hebcal; שקיעות/תפילות נגזרות מטבלת הזמנים כשקיימת.
  */
 export async function buildWeekModel(refDate = new Date()) {
   const friday = getCurrentFriday(refDate);
   const saturday = getSaturday(friday);
   const sunday = addMinutes(saturday, 24 * 60);
   const zmanimTable = await loadZmanimTable();
+  const weekContent = await loadWeekContent(isoDate(friday));
 
   try {
     const [shabbatData, friZmanim, satZmanim, weekdayZmanim, nextParasha, hebrewDateLabel] =
@@ -493,7 +623,7 @@ export async function buildWeekModel(refDate = new Date()) {
       nextHebrewDateLabel = await fetchHebrewDateLabel(String(nextParasha.date).slice(0, 10));
     }
 
-    const model = assembleModel({
+    let model = assembleModel({
       friday,
       saturday,
       shabbatData,
@@ -505,14 +635,18 @@ export async function buildWeekModel(refDate = new Date()) {
       hebrewDateLabel,
       nextHebrewDateLabel,
     });
-    return applyZmanimTable(model, zmanimTable);
+    model = applyZmanimTable(model, zmanimTable);
+    return applyWeekContent(model, weekContent);
   } catch (err) {
     console.warn('Hebcal failed, trying local cache', err);
     const cached = await fetch('./data/week.json').then((r) => r.json());
-    if (cached.times && cached.current) return applyZmanimTable(cached, zmanimTable);
+    if (cached.times && cached.current) {
+      let model = applyZmanimTable(cached, zmanimTable);
+      return applyWeekContent(model, weekContent);
+    }
     const fri = cached.friday ? new Date(`${cached.friday}T12:00:00`) : friday;
     const sat = cached.saturday ? new Date(`${cached.saturday}T12:00:00`) : saturday;
-    const model = assembleModel({
+    let model = assembleModel({
       friday: fri,
       saturday: sat,
       shabbatData: cached.shabbat || { items: [] },
@@ -522,7 +656,8 @@ export async function buildWeekModel(refDate = new Date()) {
       nextParasha: { parashaName: '', shabbatTitle: '', hdate: '' },
       source: cached.source || 'cache',
     });
-    return applyZmanimTable(model, zmanimTable);
+    model = applyZmanimTable(model, zmanimTable);
+    return applyWeekContent(model, weekContent);
   }
 }
 

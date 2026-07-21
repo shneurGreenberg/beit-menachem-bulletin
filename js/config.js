@@ -1,4 +1,4 @@
-/** הגדרות בית הכנסת ולוגיקת זמנים — יעודכן כשתגיע טבלת הזמנים */
+/** הגדרות בית הכנסת ולוגיקת זמנים */
 export const CONFIG = {
   synagogue: {
     nameDisplay: 'בית כנסת "בית מנחם" חב״ד גבעת שרת — בית שמש',
@@ -10,28 +10,37 @@ export const CONFIG = {
     latitude: 31.73072,
     longitude: 34.99293,
     tzid: 'Asia/Jerusalem',
-    candleLightingMinutes: 40,
+    /** לפי העלון המודפס / Hebcal — 36 דקות לפני שקיעה */
+    candleLightingMinutes: 36,
     havdalahMinutes: 42,
   },
-  /** יחסים שנלמדו מהעלון הנוכחי (ביחס לשקיעה / יציאה) */
+  /**
+   * יחסים שנלמדו מהעלון המודפס:
+   * - מנחה שישי ~10 דק׳ לפני שקיעה
+   * - מנחה שבת ~50 דק׳ לפני שקיעה (ואז עיגול לשעה עגולה)
+   * - תניא לנשים תמיד 45 דק׳ לפני מנחה; סיפור לילדים תמיד 30 דק׳ לפני מנחה
+   * - ערבית בין יציאת שבת (Hebcal) לצאת הכוכבים (טבלה)
+   */
   offsets: {
-    fridayMinchaBeforeSunset: 13,
+    fridayMinchaBeforeSunset: 10,
     issurMelachaBeforeSunset: 4,
-    shabbatMinchaBeforeSunset: 38,
-    shabbatArvitBeforeHavdalah: 6,
+    shabbatMinchaBeforeSunset: 50,
     weekdayMinchaBeforeSunset: 20,
     tanyaWomenBeforeMincha: 45,
     childrenStoryBeforeMincha: 30,
     weekdayChassidut: '06:00',
     weekdayShacharit: '06:30',
-    shabbatChassidut: '09:00',
+    shabbatChassidut: '09:15',
     shabbatShacharit: '10:00',
   },
   rounding: {
+    fridayMincha: true,
+    shabbatMincha: true,
+    shabbatArvit: true,
     weekdayMincha: true,
     weekdayArvit: true,
-    /** דקות "נורמליות" לעיגול בימי חול */
-    slots: [0, 10, 15, 30, 45],
+    /** דקות "נורמליות" — כפולות של 5 */
+    slots: [0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55],
   },
   fixedLessons: [
     {
@@ -46,6 +55,11 @@ export const CONFIG = {
       day: 2,
       dayName: 'יום שלישי',
       items: [{ time: 'אחרי ערבית', label: 'שיעור בגאולה ומשיח' }],
+    },
+    {
+      day: 3,
+      dayName: 'יום רביעי',
+      items: [{ time: 'אחרי ערבית', label: 'שיעור תניא' }],
     },
   ],
   /** SHA-256 של "menachem" */
