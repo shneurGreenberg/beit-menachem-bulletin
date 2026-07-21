@@ -86,12 +86,38 @@ function mapColumns(headers) {
   return col;
 }
 
+/**
+ * בלוח בית שמש: עמודת "תאריך" היא תווית עברית, והמספר הסידורי של Excel
+ * נמצא בעמודה הריקה שלידה — בוחרים את העמודה שממנה toISO מצליח.
+ */
+function resolveDateColumn(rows, headerIdx, dateIdx) {
+  if (dateIdx == null) return dateIdx;
+  const sample = rows.slice(headerIdx + 1, headerIdx + 12);
+  const candidates = [dateIdx, dateIdx + 1, dateIdx + 2].filter((i) => i >= 0);
+  for (const idx of candidates) {
+    const hits = sample.filter((r) => r && toISO(r[idx])).length;
+    if (hits >= 3) return idx;
+  }
+  return dateIdx;
+}
+
 /** מפענח קובץ Excel/CSV ומחזיר אובייקט טבלת זמנים */
 export async function parseZmanimFile(file) {
   const XLSX = await ensureXLSX();
   const buf = await file.arrayBuffer();
   const wb = XLSX.read(buf, { type: 'array' });
-  const ws = wb.Sheets[wb.SheetNames[0]];
+  const sheetName =
+    wb.SheetNames.find((n) => /בית\s*שמש/.test(n)) ||
+    wb.SheetNames.find((n) => {
+      const probe = XLSX.utils.sheet_to_json(wb.Sheets[n], {
+        header: 1,
+        raw: true,
+        defval: '',
+      });
+      return probe.some((r) => r?.some?.((c) => String(c).includes('תאריך')));
+    }) ||
+    wb.SheetNames[0];
+  const ws = wb.Sheets[sheetName];
   if (!ws) throw new Error('הקובץ ריק');
   const rows = XLSX.utils.sheet_to_json(ws, { header: 1, raw: true, defval: '' });
 
@@ -99,6 +125,7 @@ export async function parseZmanimFile(file) {
   if (headerIdx < 0) headerIdx = 0;
   const headers = rows[headerIdx].map((h) => String(h || '').replace(/\s+/g, ' ').trim());
   const col = mapColumns(headers);
+  col.date = resolveDateColumn(rows, headerIdx, col.date);
   if (col.date == null) throw new Error('לא נמצאה עמודת "תאריך" בקובץ');
   if (col.shkiaAmitit == null && col.tzeit == null) {
     throw new Error('לא נמצאו עמודות "שקיעה אמיתית" / "צאת הכוכבים"');
@@ -126,7 +153,12 @@ export async function parseZmanimFile(file) {
     if (entry.shkiaAmitit || entry.tzeitHakochavim) days[iso] = entry;
   }
   if (!Object.keys(days).length) throw new Error('לא נמצאו שורות זמנים תקינות בקובץ');
-  return { source: 'uploaded-excel', uploadedAt: new Date().toISOString(), days };
+  return {
+    source: 'uploaded-excel',
+    uploadedAt: new Date().toISOString(),
+    sheet: sheetName,
+    days,
+  };
 }
 
 export function saveUploadedZmanimTable(table) {

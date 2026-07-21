@@ -357,8 +357,9 @@ function renderBulletin(model) {
   setHtml('#special-days-wrap', renderSpecialDays(model));
 
   const sourceNotes = {
-    'zmanim-table': 'זמנים לפי טבלת אדמו״ר הזקן (בית שמש) · ניתן לעדכן ידנית',
+    'zmanim-table': 'זמנים לפי טבלת אדמו״ר הזקן — בית שמש ה׳תשפ״ו · ניתן לעדכן ידנית',
     'hebcal-beit-shemesh': 'זמנים מחושבים לפי בית שמש (Hebcal) · ניתן לעדכן ידנית',
+    'uploaded-excel': 'זמנים לפי טבלת אקסל שהועלתה · ניתן לעדכן ידנית',
   };
   setText('#source-note', sourceNotes[model.source] || model.source || '');
 
