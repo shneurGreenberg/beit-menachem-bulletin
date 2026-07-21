@@ -15,6 +15,11 @@
   --font-body: 'Heebo', 'Arial Hebrew', 'Arial', sans-serif;
   --a4-w: 210mm;
   --a4-h: 297mm;
+  --radius-sheet: 14px;
+  --radius-card: 10px;
+  --radius-chip: 10px;
+  --radius-band: 7px;
+  --radius-row: 8px;
 }
 
 *,
@@ -121,14 +126,29 @@ body {
   max-height: var(--a4-h);
   margin: 0 auto;
   background: var(--paper);
-  border: 1px solid #bbb;
-  box-shadow: 0 6px 22px rgba(0, 0, 0, 0.1);
+  border: 1px solid #c8c8c8;
+  border-radius: var(--radius-sheet);
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.1);
   padding: calc(4mm * var(--u)) calc(5mm * var(--u));
   display: flex;
   flex-direction: column;
   gap: calc(1.6mm * var(--u));
   overflow: hidden;
   font-size: calc(10.5pt * var(--u));
+}
+
+/* אורחים / צפייה רגילה: אותו מראה כמו הדפסה (בלי מסגרת כהה) */
+body:not(.edit-mode) .sheet {
+  border-color: #ddd;
+}
+
+body.public-view {
+  background: #e8e8e8;
+}
+
+body.public-view .sheet {
+  border: 0;
+  box-shadow: 0 10px 32px rgba(0, 0, 0, 0.12);
 }
 
 .mast-name {
@@ -154,6 +174,7 @@ body {
   gap: 2mm;
   padding: 1.4mm 2.4mm;
   border: 2px solid #333;
+  border-radius: var(--radius-chip);
   background: var(--soft);
 }
 
@@ -185,6 +206,7 @@ body {
 /* קבוצת הודעות תחת מסגרת/רקע יחיד (כמה הודעות = הדגשה אחת) */
 .message-group {
   border: 2.5px solid var(--shabbat);
+  border-radius: var(--radius-card);
   background: var(--shabbat-soft);
   padding: calc(2mm * var(--u)) calc(3mm * var(--u));
   display: flex;
@@ -276,19 +298,24 @@ body.fit-measure .lesson-head-tools,
 body.fit-measure .lesson-del,
 body.fit-measure .lesson-add,
 body.fit-measure .lesson-add-block,
+body.fit-measure .act-add,
+body.fit-measure .act-del,
 body.fit-measure .row-reset,
-body.fit-measure .msg-remove {
+body.fit-measure .msg-remove,
+body.fit-measure .activity-zone > .act-add {
   display: none !important;
 }
 
 .board {
   border: 2px solid #333;
+  border-radius: var(--radius-card);
   padding: calc(1.6mm * var(--u));
   display: flex;
   flex-direction: column;
   gap: calc(1.2mm * var(--u));
   flex: 1 1 auto;
   min-height: 0;
+  overflow: hidden;
 }
 
 .cols {
@@ -310,6 +337,7 @@ body.fit-measure .msg-remove {
   color: #fff;
   padding: calc(1.2mm * var(--u)) calc(2mm * var(--u));
   line-height: 1.25;
+  border-radius: var(--radius-band);
 }
 
 .band-main {
@@ -362,6 +390,7 @@ body.fit-measure .msg-remove {
   grid-template-columns: 1fr;
   background: var(--soft);
   border: 1px solid #bbb;
+  border-radius: var(--radius-row);
   margin-top: 1mm;
   padding: calc(1.5mm * var(--u)) calc(2mm * var(--u));
 }
@@ -381,6 +410,50 @@ body.fit-measure .msg-remove {
 
 .lesson-line.is-edit .lesson-del {
   align-self: center;
+}
+
+/* פעילויות שבת — הוספה/מחיקה */
+.activity-zone {
+  display: flex;
+  flex-direction: column;
+}
+
+.activity-row.is-edit:not(.highlight-line):not(.sub-note) {
+  grid-template-columns: 1fr auto auto;
+}
+
+.activity-row.is-edit.has-reset:not(.highlight-line):not(.sub-note) {
+  grid-template-columns: 1fr auto auto auto;
+}
+
+.activity-row.highlight-line.is-edit,
+.activity-row.sub-note.is-edit {
+  grid-template-columns: 1fr auto;
+}
+
+.act-add,
+.act-del {
+  font-family: var(--font-body);
+  font-size: 0.72rem;
+  border: 1px solid #999;
+  background: #fff;
+  color: #222;
+  border-radius: 8px;
+  padding: 0.1rem 0.4rem;
+  cursor: pointer;
+  line-height: 1.2;
+  align-self: center;
+}
+
+.act-del {
+  color: var(--shabbat);
+  border-color: var(--shabbat);
+  font-weight: 700;
+}
+
+.act-add {
+  margin: 0.6mm 0 0.2mm;
+  align-self: flex-start;
 }
 
 /* כפתור החזרה לזמן אוטומטי לשורת זמן שנערכה ידנית */
@@ -459,7 +532,7 @@ body.edit-mode .editable:focus {
   border: 1px solid #999;
   background: #fff;
   color: #222;
-  border-radius: 6px;
+  border-radius: 8px;
   padding: 0.1rem 0.4rem;
   cursor: pointer;
   line-height: 1.2;
@@ -479,6 +552,7 @@ body.edit-mode .editable:focus {
 .special-days {
   padding: calc(1.5mm * var(--u)) calc(2.5mm * var(--u));
   border: 1.5px solid #888;
+  border-radius: var(--radius-card);
   background: #f7f7f7;
 }
 
@@ -505,6 +579,7 @@ body.edit-mode .editable:focus {
   gap: 2mm;
   padding-top: 1.5mm;
   border-top: 2px solid #333;
+  border-radius: 0;
   text-align: center;
   flex: 0 0 auto;
 }
@@ -1010,6 +1085,8 @@ body.capture-phone .board {
   .lesson-del,
   .lesson-add,
   .lesson-add-block,
+  .act-add,
+  .act-del,
   .row-reset,
   #loading,
   .share-overlay {
@@ -1033,6 +1110,7 @@ body.capture-phone .board {
     margin: 0 !important;
     padding: calc(4mm * var(--u)) calc(5mm * var(--u)) !important;
     border: 0 !important;
+    border-radius: 0 !important;
     box-shadow: none !important;
     background: #fff !important;
     overflow: hidden !important;
@@ -1041,6 +1119,24 @@ body.capture-phone .board {
     page-break-after: avoid !important;
     page-break-inside: avoid !important;
     break-inside: avoid !important;
+  }
+
+  .board,
+  .zman-chip,
+  .message-group,
+  .band,
+  .special-days,
+  .row.highlight-line {
+    border-radius: var(--radius-card) !important;
+  }
+
+  .band {
+    border-radius: var(--radius-band) !important;
+  }
+
+  .zman-chip,
+  .row.highlight-line {
+    border-radius: var(--radius-chip) !important;
   }
 
   .band-main,

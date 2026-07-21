@@ -277,10 +277,93 @@ function assembleModel({
       pirkeiAvot: 'פרקי אבות',
       marotKodesh: 'מראות קודש',
     },
+    /** פעילויות (לא תפילות) — ניתן להוסיף/למחוק במצב עריכה */
+    activities: defaultActivities(),
     specialDays: uniqueSpecials,
     importantMessages: [],
     fixedLessons: structuredClone(CONFIG.fixedLessons),
   };
+}
+
+/** אזורי פעילות סביב התפילות הקבועות */
+export const ACTIVITY_ZONES = [
+  'friday',
+  'morningBefore',
+  'morningAfter',
+  'afternoonBefore',
+  'afternoonMid',
+  'afternoonAfter',
+  'weekdayBefore',
+];
+
+const NOTE_ZONES = new Set(['morningAfter', 'afternoonMid', 'afternoonAfter']);
+
+export function isNoteZone(zone) {
+  return NOTE_ZONES.has(zone);
+}
+
+export function newActivityId() {
+  return `act-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`;
+}
+
+/** ברירת מחדל לפעילויות שבת / חול (הכל מלבד תפילות וזמנים) */
+export function defaultActivities() {
+  return {
+    friday: [],
+    morningBefore: [
+      {
+        id: 'shabbatChassidut',
+        type: 'timed',
+        timeKey: 'shabbatChassidut',
+        label: 'שיעור חסידות',
+      },
+    ],
+    morningAfter: [
+      { id: 'farbrengen', type: 'note', label: 'התוועדות לאחר התפילה' },
+    ],
+    afternoonBefore: [
+      { id: 'tanyaWomen', type: 'timed', timeKey: 'tanyaWomen', label: 'שיעור תניא לנשים' },
+      { id: 'childrenStory', type: 'timed', timeKey: 'childrenStory', label: 'סיפור לילדים' },
+    ],
+    afternoonMid: [{ id: 'pirkeiAvot', type: 'note', label: 'פרקי אבות' }],
+    afternoonAfter: [{ id: 'marotKodesh', type: 'note', label: 'מראות קודש' }],
+    weekdayBefore: [
+      {
+        id: 'weekdayChassidut',
+        type: 'timed',
+        timeKey: 'weekdayChassidut',
+        label: 'שיעור חסידות',
+      },
+    ],
+  };
+}
+
+/** מבטיח מבנה activities מלא גם לשיריונות ישנים ב־localStorage */
+export function normalizeActivities(raw) {
+  const base = defaultActivities();
+  if (!raw || typeof raw !== 'object') return base;
+  const out = { ...base };
+  for (const zone of ACTIVITY_ZONES) {
+    if (Array.isArray(raw[zone])) {
+      out[zone] = raw[zone]
+        .map((item) => {
+          if (!item || typeof item !== 'object') return null;
+          const type = item.type === 'note' ? 'note' : 'timed';
+          const id = String(item.id || newActivityId());
+          const label = String(item.label ?? '').trim();
+          if (type === 'note') return { id, type, label };
+          return {
+            id,
+            type: 'timed',
+            label,
+            timeKey: item.timeKey || undefined,
+            time: item.time != null ? String(item.time) : undefined,
+          };
+        })
+        .filter(Boolean);
+    }
+  }
+  return out;
 }
 
 const ZMANIM_TABLE_KEY = 'beit-menachem:zmanimTable';
@@ -510,7 +593,24 @@ export function applyOverrides(model, overrides) {
   }
   if (overrides.current) next.current = { ...next.current, ...overrides.current };
   if (overrides.nextWeek) next.nextWeek = { ...next.nextWeek, ...overrides.nextWeek };
-  if (overrides.labels) next.labels = { ...next.labels, ...overrides.labels };
+  if (overrides.labels) {
+    next.labels = { ...next.labels, ...overrides.labels };
+    // שמירות ישנות עם labels בלבד — מעדכנים את כותרות הפעילויות המתאימות
+    if (!overrides.activities) {
+      next.activities = normalizeActivities(next.activities);
+      const sync = [
+        ['morningAfter', 'farbrengen', 'farbrengen'],
+        ['afternoonMid', 'pirkeiAvot', 'pirkeiAvot'],
+        ['afternoonAfter', 'marotKodesh', 'marotKodesh'],
+      ];
+      for (const [zone, id, labelKey] of sync) {
+        if (overrides.labels[labelKey] == null) continue;
+        const item = next.activities[zone]?.find((a) => a.id === id);
+        if (item) item.label = overrides.labels[labelKey];
+      }
+    }
+  }
+  if (overrides.activities) next.activities = normalizeActivities(overrides.activities);
   if (overrides.fixedLessons) next.fixedLessons = overrides.fixedLessons;
   if (overrides.specialNote) next.specialNote = overrides.specialNote;
   next._overrides = overrides;
