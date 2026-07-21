@@ -10,7 +10,7 @@
     />
     <title>עלון שבת | בית מנחם</title>
     <link rel="icon" href="./favicon.svg" type="image/svg+xml" />
-    <link rel="stylesheet" href="./css/styles.css?v=19" />
+    <link rel="stylesheet" href="./css/styles.css?v=20" />
     <script>
       // GitHub project Pages needs a trailing slash so ./js and ./css resolve correctly.
       (function ensureTrailingSlash() {
@@ -61,12 +61,14 @@
 
           <div class="messages-wrap" id="important-messages"></div>
 
-          <section class="board" aria-label="זמני השבת">
+          <section class="board board-shabbat" aria-label="זמני השבת">
             <div class="band band-main" id="week-title">השבת</div>
-            <div class="cols">
+            <div class="cols cols-3">
               <div class="col">
                 <div class="band band-sub">ערב שבת</div>
                 <div class="schedule" id="friday-schedule"></div>
+              </div>
+              <div class="col">
                 <div class="band band-sub">שבת בבוקר</div>
                 <div class="schedule" id="morning-schedule"></div>
               </div>
@@ -79,15 +81,15 @@
 
           <div class="messages-wrap" id="messages-mid"></div>
 
-          <section class="board" aria-label="השבוע הקרוב">
+          <section class="board board-week" aria-label="השבוע הקרוב">
             <div class="band band-main" id="next-week-title">השבוע הקרוב</div>
-            <div class="cols">
+            <div class="cols cols-2">
               <div class="col">
                 <div class="band band-sub">תפילות בימי חול</div>
                 <div class="schedule" id="weekday-schedule"></div>
               </div>
               <div class="col">
-                <div class="band band-sub">שיעורים קבועים</div>
+                <div class="band band-sub">שיעורים קרובים</div>
                 <div class="lessons" id="fixed-lessons"></div>
               </div>
             </div>
@@ -117,6 +119,6 @@
 
     <div id="toast" hidden></div>
 
-    <script type="module" src="./js/app.js?v=19"></script>
+    <script type="module" src="./js/app.js?v=20"></script>
   </body>
 </html>

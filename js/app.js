@@ -445,17 +445,16 @@ function renderBulletin(model) {
   scheduleFit();
 }
 
-const FIT_MIN = 0.4;
+const FIT_MIN = 0.28;
 
 /**
- * מקטין אוטומטית את גודל הטקסט (משתנה --u) כדי שכל התוכן ייכנס לעמוד A4 יחיד
- * בהדפסה, בלי ששורות ייערמו זו על זו. המדידה בלי כלי עריכה (שלא מודפסים).
+ * מקטין אוטומטית את --u עד שכל התוכן נכנס לעמוד A4.
+ * חשוב: לא לחתוך טקסט בהדפסה — ממשיכים להקטין במקום לחתוך.
  */
 function fitSheet() {
   const sheet = $('.sheet');
   if (!sheet) return;
 
-  // במובייל או במצב צילום-טלפון הגובה גמיש — אין צורך בהקטנה
   if (
     window.matchMedia('(max-width: 820px)').matches ||
     document.body.classList.contains('capture-phone')
@@ -466,21 +465,18 @@ function fitSheet() {
 
   document.body.classList.add('fit-measure');
   sheet.style.setProperty('--u', '1');
-  // כפיית reflow לפני המדידה
   void sheet.offsetHeight;
 
   let u = 1;
   let guard = 0;
-  while (sheet.scrollHeight > sheet.clientHeight + 0.5 && u > FIT_MIN && guard < 80) {
-    u = Math.max(FIT_MIN, Math.round((u - 0.015) * 1000) / 1000);
+  while (sheet.scrollHeight > sheet.clientHeight + 0.5 && u > 0.45 && guard < 100) {
+    u = Math.max(0.45, Math.round((u - 0.02) * 1000) / 1000);
     sheet.style.setProperty('--u', u.toFixed(3));
     void sheet.offsetHeight;
     guard++;
   }
-
-  // אם עדיין חורג — ממשיכים לרדת עד מינימום קריא מאוד, כדי למנוע חפיפה בהדפסה
-  while (sheet.scrollHeight > sheet.clientHeight + 0.5 && u > 0.32 && guard < 120) {
-    u = Math.max(0.32, Math.round((u - 0.01) * 1000) / 1000);
+  while (sheet.scrollHeight > sheet.clientHeight + 0.5 && u > FIT_MIN && guard < 160) {
+    u = Math.max(FIT_MIN, Math.round((u - 0.01) * 1000) / 1000);
     sheet.style.setProperty('--u', u.toFixed(3));
     void sheet.offsetHeight;
     guard++;
