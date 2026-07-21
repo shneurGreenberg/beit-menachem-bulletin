@@ -2,6 +2,18 @@
 
 אתר סטטי (GitHub Pages) ליצירת עלון שבת שבועי לבית כנסת **"בית מנחם" חב״ד גבעת שרת — בית שמש**.
 
+## כתובת חיה
+
+**https://shneurgreenberg.github.io/beit-menachem-bulletin/**
+
+> שימו לב: `https://shneurgreenberg.github.io/` הוא ריפו נפרד (`shneurGreenberg.github.io`) עם אפליקציית Flutter ישנה משנת 2022 שמציגה מסך ריק. העלון עצמו נמצא בנתיב למעלה. כדי שהשורש יפנה לעלון, הריצו:
+>
+> ```bash
+> node scripts/fix-user-pages.mjs
+> ```
+>
+> (דורש הרשאת כתיבה לריפו `shneurGreenberg.github.io`). הקבצים להעתקה ידנית נמצאים ב־`user-site/`.
+
 ## מה כלול
 
 - חלוקה ברורה: **שבת נוכחית** מול **השבוע הקרוב** (כולל שם הפרשה הבאה)
@@ -33,4 +45,8 @@ npx --yes serve .
 
 ## GitHub Pages
 
-האתר מוגש משורש הריפו (`index.html`). לאחר הפעלה ב־Settings → Pages → Deploy from branch `main` / root.
+האתר מוגש משורש הריפו (`index.html`) בכתובת הפרויקט:
+
+`https://shneurgreenberg.github.io/beit-menachem-bulletin/`
+
+הפעלה: Settings → Pages → Deploy from branch `main` / root.
