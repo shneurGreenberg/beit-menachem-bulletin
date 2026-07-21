@@ -5,6 +5,11 @@ import {
   normalizeMessages,
   weekStorageKey,
   MESSAGE_PLACEMENTS,
+  defaultActivities,
+  normalizeActivities,
+  newActivityId,
+  isNoteZone,
+  ACTIVITY_ZONES,
 } from './times.js';
 import {
   getWeekOverrides,
@@ -87,6 +92,68 @@ function timeCell(key, value, editable) {
           : ''
       }
     </div>`;
+}
+
+/** שורת פעילות (שיעור / הערה) — ניתנת להוספה ומחיקה */
+function activityRowHtml(zone, item, index, times, editable) {
+  const isNote = item.type === 'note' || (!item.timeKey && !item.time && item.type !== 'timed');
+  const timeVal =
+    item.timeKey && times?.[item.timeKey] != null
+      ? times[item.timeKey]
+      : item.time != null
+        ? item.time
+        : '';
+  const rowClass = isNote
+    ? item.id === 'farbrengen' || zone === 'morningAfter'
+      ? 'row highlight-line activity-row'
+      : 'row sub-note activity-row'
+    : 'row activity-row';
+  const delBtn = editable
+    ? `<button type="button" class="act-del" data-act-del="${zone}:${index}" aria-label="מחיקת שורה">×</button>`
+    : '';
+
+  if (isNote) {
+    return `
+      <div class="${rowClass} ${editable ? 'is-edit' : ''}" data-act-zone="${zone}" data-act-i="${index}">
+        <span class="row-label ${editable ? 'editable' : ''}"
+              data-act-field="label"
+              ${editable ? 'contenteditable="true"' : ''}>${escapeHtml(item.label || '')}</span>
+        ${delBtn}
+      </div>`;
+  }
+
+  const timeAttr = item.timeKey
+    ? `data-key="${item.timeKey}"`
+    : `data-act-field="time"`;
+  const overridden = item.timeKey && state.model?._overrides?.times?.[item.timeKey] != null;
+  const showReset = editable && overridden;
+  return `
+    <div class="${rowClass} ${overridden ? 'is-overridden' : ''} ${
+      showReset ? 'has-reset' : ''
+    } ${editable ? 'is-edit' : ''}" data-act-zone="${zone}" data-act-i="${index}">
+      <span class="row-label ${editable ? 'editable' : ''}"
+            data-act-field="label"
+            ${editable ? 'contenteditable="true"' : ''}>${escapeHtml(item.label || '')}</span>
+      <span class="row-time ${editable ? 'editable' : ''}"
+            ${timeAttr}
+            ${editable ? 'contenteditable="true" spellcheck="false"' : ''}>${escapeHtml(timeVal)}</span>
+      ${
+        showReset
+          ? `<button type="button" class="row-reset" data-reset-time="${item.timeKey}" title="החזרה לזמן האוטומטי" aria-label="החזרה לזמן האוטומטי">↺</button>`
+          : ''
+      }
+      ${delBtn}
+    </div>`;
+}
+
+function renderActivityZone(zone, model, editable) {
+  const list = model.activities?.[zone] || [];
+  const rows = list.map((item, i) => activityRowHtml(zone, item, i, model.times, editable)).join('');
+  const addBtn = editable
+    ? `<button type="button" class="act-add" data-act-add="${zone}">＋ שורה</button>`
+    : '';
+  if (!rows && !addBtn) return '';
+  return `<div class="activity-zone" data-activity-zone="${zone}">${rows}${addBtn}</div>`;
 }
 
 function escapeHtml(s) {
@@ -270,7 +337,24 @@ function renderBulletin(model) {
   if (!model?.times) return;
   const editable = state.editMode && !state.viewingHistoryId;
   const t = model.times;
-  const labels = model.labels || {};
+  // תאימות לאחור: אם אין activities (שמירה ישנה) — בונים מ־labels
+  if (!model.activities) {
+    model.activities = defaultActivities();
+    if (model.labels?.farbrengen) {
+      const n = model.activities.morningAfter.find((a) => a.id === 'farbrengen');
+      if (n) n.label = model.labels.farbrengen;
+    }
+    if (model.labels?.pirkeiAvot) {
+      const n = model.activities.afternoonMid.find((a) => a.id === 'pirkeiAvot');
+      if (n) n.label = model.labels.pirkeiAvot;
+    }
+    if (model.labels?.marotKodesh) {
+      const n = model.activities.afternoonAfter.find((a) => a.id === 'marotKodesh');
+      if (n) n.label = model.labels.marotKodesh;
+    }
+  } else {
+    model.activities = normalizeActivities(model.activities);
+  }
 
   setText('#synagogue-name', CONFIG.synagogue.nameDisplay);
   setText('#week-title', currentTitle(model));
@@ -285,6 +369,7 @@ function renderBulletin(model) {
     ${timeCell('fridayMincha', t.fridayMincha, editable)}
     ${timeCell('issurMelacha', t.issurMelacha, editable)}
     ${timeCell('sunsetFriday', t.sunsetFriday, editable)}
+    ${renderActivityZone('friday', model, editable)}
   `,
   );
   bindRowLabels('#friday-schedule', {
@@ -298,40 +383,27 @@ function renderBulletin(model) {
   setHtml(
     '#morning-schedule',
     `
-    ${timeCell('shabbatChassidut', t.shabbatChassidut, editable)}
+    ${renderActivityZone('morningBefore', model, editable)}
     ${timeCell('shabbatShacharit', t.shabbatShacharit, editable)}
-    <div class="row highlight-line">
-      <span class="row-label ${editable ? 'editable' : ''}" id="farbrengen-label"
-            ${editable ? 'contenteditable="true"' : ''}>${escapeHtml(labels.farbrengen || '')}</span>
-    </div>
+    ${renderActivityZone('morningAfter', model, editable)}
   `,
   );
   bindRowLabels('#morning-schedule', {
-    shabbatChassidut: 'שיעור חסידות',
     shabbatShacharit: 'שחרית',
   });
 
   setHtml(
     '#afternoon-schedule',
     `
-    ${timeCell('tanyaWomen', t.tanyaWomen, editable)}
-    ${timeCell('childrenStory', t.childrenStory, editable)}
+    ${renderActivityZone('afternoonBefore', model, editable)}
     ${timeCell('shabbatMincha', t.shabbatMincha, editable)}
-    <div class="row sub-note">
-      <span class="row-label ${editable ? 'editable' : ''}" id="pirkei-label"
-            ${editable ? 'contenteditable="true"' : ''}>${escapeHtml(labels.pirkeiAvot || '')}</span>
-    </div>
+    ${renderActivityZone('afternoonMid', model, editable)}
     ${timeCell('sunsetShabbat', t.sunsetShabbat, editable)}
     ${timeCell('shabbatArvit', t.shabbatArvit, editable)}
-    <div class="row sub-note">
-      <span class="row-label ${editable ? 'editable' : ''}" id="marot-label"
-            ${editable ? 'contenteditable="true"' : ''}>${escapeHtml(labels.marotKodesh || '')}</span>
-    </div>
+    ${renderActivityZone('afternoonAfter', model, editable)}
   `,
   );
   bindRowLabels('#afternoon-schedule', {
-    tanyaWomen: 'שיעור תניא לנשים',
-    childrenStory: 'סיפור לילדים',
     shabbatMincha: 'מנחה',
     sunsetShabbat: 'שקיעה',
     shabbatArvit: 'ערבית',
@@ -340,14 +412,13 @@ function renderBulletin(model) {
   setHtml(
     '#weekday-schedule',
     `
-    ${timeCell('weekdayChassidut', t.weekdayChassidut, editable)}
+    ${renderActivityZone('weekdayBefore', model, editable)}
     ${timeCell('weekdayShacharit', t.weekdayShacharit, editable)}
     ${timeCell('weekdayMincha', t.weekdayMincha, editable)}
     ${timeCell('weekdayArvit', t.weekdayArvit, editable)}
   `,
   );
   bindRowLabels('#weekday-schedule', {
-    weekdayChassidut: 'שיעור חסידות',
     weekdayShacharit: 'שחרית',
     weekdayMincha: 'מנחה',
     weekdayArvit: 'ערבית',
@@ -372,12 +443,11 @@ function renderBulletin(model) {
   scheduleFit();
 }
 
-const FIT_MIN = 0.55;
+const FIT_MIN = 0.4;
 
 /**
  * מקטין אוטומטית את גודל הטקסט (משתנה --u) כדי שכל התוכן ייכנס לעמוד A4 יחיד
- * בהדפסה, בלי לדחוס מעבר למינימום קריא. המדידה מתבצעת ללא כלי העריכה
- * (שלא מודפסים), כך שההתאמה משקפת את הפלט המודפס בפועל.
+ * בהדפסה, בלי ששורות ייערמו זו על זו. המדידה בלי כלי עריכה (שלא מודפסים).
  */
 function fitSheet() {
   const sheet = $('.sheet');
@@ -392,15 +462,25 @@ function fitSheet() {
     return;
   }
 
-  // מסתירים את כלי העריכה בזמן המדידה כדי למדוד את גובה התוכן המודפס בלבד
   document.body.classList.add('fit-measure');
   sheet.style.setProperty('--u', '1');
+  // כפיית reflow לפני המדידה
+  void sheet.offsetHeight;
 
   let u = 1;
   let guard = 0;
-  while (sheet.scrollHeight > sheet.clientHeight + 1 && u > FIT_MIN && guard < 60) {
-    u = Math.max(FIT_MIN, Math.round((u - 0.02) * 1000) / 1000);
+  while (sheet.scrollHeight > sheet.clientHeight + 0.5 && u > FIT_MIN && guard < 80) {
+    u = Math.max(FIT_MIN, Math.round((u - 0.015) * 1000) / 1000);
     sheet.style.setProperty('--u', u.toFixed(3));
+    void sheet.offsetHeight;
+    guard++;
+  }
+
+  // אם עדיין חורג — ממשיכים לרדת עד מינימום קריא מאוד, כדי למנוע חפיפה בהדפסה
+  while (sheet.scrollHeight > sheet.clientHeight + 0.5 && u > 0.32 && guard < 120) {
+    u = Math.max(0.32, Math.round((u - 0.01) * 1000) / 1000);
+    sheet.style.setProperty('--u', u.toFixed(3));
+    void sheet.offsetHeight;
     guard++;
   }
 
@@ -436,6 +516,35 @@ function collectLessonsFromDom() {
   return fixedLessons;
 }
 
+/** קורא פעילויות שבת/חול מה-DOM */
+function collectActivitiesFromDom() {
+  const activities = normalizeActivities(state.model.activities || defaultActivities());
+  for (const zone of ACTIVITY_ZONES) {
+    const rows = $$(`[data-act-zone="${zone}"]`);
+    rows.forEach((row) => {
+      const i = Number(row.dataset.actI);
+      if (!activities[zone]?.[i]) return;
+      const labelEl = row.querySelector('[data-act-field="label"]');
+      if (labelEl) activities[zone][i].label = labelEl.textContent.replace(/\u00a0/g, ' ').trim();
+      const timeEl = row.querySelector('[data-act-field="time"]');
+      if (timeEl) activities[zone][i].time = timeEl.textContent.trim();
+    });
+  }
+  return activities;
+}
+
+/** מסנכרן labels ישנים מתוך activities (לתאימות) */
+function labelsFromActivities(activities) {
+  const labels = { ...(state.model.labels || {}) };
+  const far = activities.morningAfter?.find((a) => a.id === 'farbrengen');
+  const pir = activities.afternoonMid?.find((a) => a.id === 'pirkeiAvot');
+  const mar = activities.afternoonAfter?.find((a) => a.id === 'marotKodesh');
+  if (far) labels.farbrengen = far.label;
+  if (pir) labels.pirkeiAvot = pir.label;
+  if (mar) labels.marotKodesh = mar.label;
+  return labels;
+}
+
 /** אוסף את כל העריכות הפעילות מה-DOM לאובייקט overrides (ללא שמירה) */
 function readOverridesFromDom() {
   const times = { ...(state.model._overrides?.times || {}) };
@@ -448,18 +557,14 @@ function readOverridesFromDom() {
     else if (autoVal == null) times[key] = val;
   });
 
-  const labels = { ...state.model.labels };
-  const far = $('#farbrengen-label');
-  const pir = $('#pirkei-label');
-  const mar = $('#marot-label');
-  if (far) labels.farbrengen = far.textContent.trim();
-  if (pir) labels.pirkeiAvot = pir.textContent.trim();
-  if (mar) labels.marotKodesh = mar.textContent.trim();
+  const activities = collectActivitiesFromDom();
+  const labels = labelsFromActivities(activities);
 
   return {
     times,
     importantMessages: collectMessageEdits(),
     labels,
+    activities,
     fixedLessons: collectLessonsFromDom(),
   };
 }
@@ -1001,6 +1106,36 @@ function onEditActionClick(e) {
   if (btn.hasAttribute('data-lesson-del-item')) {
     const [di, ii] = btn.getAttribute('data-lesson-del-item').split('-').map(Number);
     persistOverridesWith((ov) => ov.fixedLessons?.[di]?.items?.splice(ii, 1));
+    return;
+  }
+  // פעילויות שבת/חול: הוספת שורה
+  if (btn.hasAttribute('data-act-add')) {
+    const zone = btn.getAttribute('data-act-add');
+    persistOverridesWith((ov) => {
+      ov.activities = normalizeActivities(ov.activities || state.model.activities);
+      ov.activities[zone] = ov.activities[zone] || [];
+      if (isNoteZone(zone)) {
+        ov.activities[zone].push({ id: newActivityId(), type: 'note', label: 'הערה חדשה' });
+      } else {
+        ov.activities[zone].push({
+          id: newActivityId(),
+          type: 'timed',
+          label: 'פעילות חדשה',
+          time: '',
+        });
+      }
+    });
+    showToast('נוספה שורה');
+    return;
+  }
+  // פעילויות: מחיקת שורה
+  if (btn.hasAttribute('data-act-del')) {
+    const [zone, idx] = btn.getAttribute('data-act-del').split(':');
+    const i = Number(idx);
+    persistOverridesWith((ov) => {
+      ov.activities = normalizeActivities(ov.activities || state.model.activities);
+      ov.activities[zone]?.splice(i, 1);
+    });
     return;
   }
 }
