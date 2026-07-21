@@ -428,9 +428,11 @@ function renderBulletin(model) {
   setHtml('#special-days-wrap', renderSpecialDays(model));
 
   const sourceNotes = {
-    'zmanim-table': 'זמנים לפי טבלת אדמו״ר הזקן — בית שמש ה׳תשפ״ו · ניתן לעדכן ידנית',
+    'zmanim-table':
+      'הדלקה ויציאה לפי Hebcal · שקיעות ותפילות לפי טבלת אדמו״ר הזקן (בית שמש) · ניתן לעדכן ידנית',
     'hebcal-beit-shemesh': 'זמנים מחושבים לפי בית שמש (Hebcal) · ניתן לעדכן ידנית',
-    'uploaded-excel': 'זמנים לפי טבלת אקסל שהועלתה · ניתן לעדכן ידנית',
+    'uploaded-excel':
+      'הדלקה ויציאה לפי Hebcal · שאר הזמנים לפי טבלת אקסל שהועלתה · ניתן לעדכן ידנית',
   };
   setText('#source-note', sourceNotes[model.source] || model.source || '');
 
@@ -633,11 +635,16 @@ async function loadWeek() {
   try {
     const auto = await buildWeekModel(new Date());
     state.autoModel = auto;
-    const overrides = getWeekOverrides(auto.friday);
-    state.model = applyOverrides(auto, {
-      ...overrides,
-      importantMessages: normalizeMessages(overrides),
-    });
+    const overrides = getWeekOverrides(auto.friday) || {};
+    // לא דורסים הודעות שבועיות מ־week-content אם אין הודעות שמורות מקומית
+    const merged = { ...overrides };
+    if (!Array.isArray(overrides.importantMessages) && !overrides.importantMessage) {
+      delete merged.importantMessages;
+      delete merged.importantMessage;
+    } else {
+      merged.importantMessages = normalizeMessages(overrides);
+    }
+    state.model = applyOverrides(auto, merged);
     // מציגים את הדף לפני הרינדור כדי שכל האלמנטים יהיו זמינים
     setHidden('#app', false);
     setHidden('#loading', true);
@@ -1235,11 +1242,15 @@ function bindUi() {
 
   $('#btn-back-current')?.addEventListener('click', () => {
     state.viewingHistoryId = null;
-    const overrides = getWeekOverrides(state.autoModel.friday);
-    state.model = applyOverrides(state.autoModel, {
-      ...overrides,
-      importantMessages: normalizeMessages(overrides),
-    });
+    const overrides = getWeekOverrides(state.autoModel.friday) || {};
+    const merged = { ...overrides };
+    if (!Array.isArray(overrides.importantMessages) && !overrides.importantMessage) {
+      delete merged.importantMessages;
+      delete merged.importantMessage;
+    } else {
+      merged.importantMessages = normalizeMessages(overrides);
+    }
+    state.model = applyOverrides(state.autoModel, merged);
     renderBulletin(state.model);
     showToast('חזרה לשבוע הנוכחי');
   });
