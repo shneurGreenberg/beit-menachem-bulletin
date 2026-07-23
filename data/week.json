@@ -1,12 +1,12 @@
 {
-  "generatedAt": "2026-07-19T06:51:06.761Z",
-  "source": "seed-hebcal",
+  "generatedAt": "2026-07-23T10:09:56.269Z",
+  "source": "github-actions-hebcal",
   "friday": "2026-07-24",
   "saturday": "2026-07-25",
   "shabbat": {
     "title": "Hebcal Bet Shemesh July 2026",
-    "date": "2026-07-19T06:51:10.348Z",
-    "version": "6.6.0-3.8.4",
+    "date": "2026-07-23T10:09:56.133Z",
+    "version": "6.8.0-3.8.5",
     "location": {
       "title": "Bet Shemesh, Israel",
       "city": "Bet Shemesh",
@@ -98,7 +98,7 @@
   },
   "zmanimFriday": {
     "date": "2026-07-24",
-    "version": "v1.3.1",
+    "version": "v1.4.2",
     "location": {
       "title": "Bet Shemesh, Israel",
       "city": "Bet Shemesh",
@@ -152,7 +152,7 @@
   },
   "zmanimSaturday": {
     "date": "2026-07-25",
-    "version": "v1.3.1",
+    "version": "v1.4.2",
     "location": {
       "title": "Bet Shemesh, Israel",
       "city": "Bet Shemesh",
